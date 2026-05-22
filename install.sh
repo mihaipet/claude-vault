@@ -161,6 +161,7 @@ fi
 # ── Step 9: CLAUDE.md ─────────────────────────────────────────────────────────
 
 VAULT_BLOCK="<!-- claude-vault-start -->
+
 ## Vault
 Persistent context files loaded every session.
 
