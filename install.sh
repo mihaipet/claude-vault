@@ -90,9 +90,9 @@ echo ""
 
 # ── Step 6: Install skills ────────────────────────────────────────────────────
 
-mkdir -p "$SKILLS_DEST/vault"
+mkdir -p "$SKILLS_DEST/vault-edit"
 mkdir -p "$SKILLS_DEST/setup"
-cp "$SCRIPT_DIR/skills/vault/SKILL.md" "$SKILLS_DEST/vault/SKILL.md"
+cp "$SCRIPT_DIR/skills/vault-edit/SKILL.md" "$SKILLS_DEST/vault-edit/SKILL.md"
 cp "$SCRIPT_DIR/skills/setup/SKILL.md" "$SKILLS_DEST/setup/SKILL.md"
 echo "✓ Skills installed to $SKILLS_DEST"
 
@@ -167,7 +167,7 @@ Persistent context files loaded every session.
 - \`$VAULT_PATH/memory.md\` — current project state, recent decisions, lessons learned
 - \`$VAULT_PATH/directives.md\` — standing rules, always follow these
 
-Read both at the start of every session. Use /vault to update them.
+Read both at the start of every session. Use /vault-edit to update them.
 To change your settings, run \`configure.sh\` or type /setup in Claude Code.
 <!-- claude-vault-end -->"
 
@@ -205,7 +205,7 @@ echo "────────────────────────�
 echo "  Commands available in Claude Code"
 echo "────────────────────────────────"
 echo ""
-echo "  /vault"
+echo "  /vault-edit"
 echo "    Update your second brain after a session."
 echo "    Use it to log decisions, lessons, and open questions."
 echo "    Also use it to add a new rule or create a new vault file."

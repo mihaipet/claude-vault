@@ -1,4 +1,4 @@
-# /vault — Grow your second brain
+# /vault-edit — Grow your second brain
 
 Use this skill to maintain and expand your vault — the persistent context files Claude reads every session.
 

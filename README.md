@@ -12,7 +12,7 @@ Claude forgets everything when a session ends. This gives it a place to remember
 |---|---|
 | `memory.md` | Your current project state. What you're focused on, recent decisions, open questions. Claude reads this every session. |
 | `directives.md` | Standing rules. How you like to work, quality standards, project conventions. Claude follows these without being told. |
-| `/vault` skill | Tells Claude how to update and grow your vault files over time. |
+| `/vault-edit` skill | Tells Claude how to update and grow your vault files over time. |
 | `/setup` skill | Lets you review and change your settings from inside Claude Code. |
 
 ---
@@ -82,9 +82,9 @@ If an existing install is detected, `install.sh` offers a menu — update settin
 
 ## Using the vault day to day
 
-**Growing your second brain — `/vault`**
+**Growing your second brain — `/vault-edit`**
 
-Type `/vault` in Claude Code to:
+Type `/vault-edit` in Claude Code to:
 - Update `memory.md` after a session — what happened, what was decided, what to pick up next
 - Add a new directive when you find yourself correcting Claude for the same thing twice
 - Create a new vault file when a topic outgrows `memory.md` and `directives.md`
@@ -105,7 +105,7 @@ Type `/setup` to:
 ~/.claude/
   CLAUDE.md               ← vault reference, read by Claude in every project
   skills/
-    vault/SKILL.md        ← /vault skill
+    vault-edit/SKILL.md   ← /vault-edit skill
     setup/SKILL.md        ← /setup skill
   vault/
     memory.md
@@ -125,7 +125,7 @@ your-project/
     directives.md
     ...
 ~/.claude/skills/         ← skills always install globally
-  vault/SKILL.md
+  vault-edit/SKILL.md
   setup/SKILL.md
 ```
 
