@@ -1,3 +1,8 @@
+---
+name: setup
+description: Use to review or change vault settings — role, response style, confirmation behaviour — without leaving Claude Code.
+---
+
 # /setup — Review and change your vault settings
 
 Use this skill to review your current configuration and update any settings without leaving Claude Code.
@@ -30,7 +35,7 @@ Claude will show you the current value, propose the change, and update `directiv
 
 - Always show the current value before proposing a change
 - Show a before/after diff for any edit to directives.md
-- Never change memory.md during a settings session — that's for /vault
+- Never change memory.md during a settings session — that's for /vault-edit
 - After updating, tell the user when the change takes effect (next session)
 - If the user asks to see all settings, read directives.md and summarise clearly
 

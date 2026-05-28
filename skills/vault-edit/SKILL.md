@@ -1,3 +1,8 @@
+---
+name: vault-edit
+description: Use at end of session, when adding a new rule, or creating a new vault file. Maintains and grows your persistent context files.
+---
+
 # /vault-edit — Grow your second brain
 
 Use this skill to maintain and expand your vault — the persistent context files Claude reads every session.
