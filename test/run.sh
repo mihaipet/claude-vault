@@ -108,6 +108,32 @@ assert_count "<!-- vault-settings-start -->" "$DIRECTIVES" "1" "block not duplic
 # Custom user content must survive rewrites
 assert_contains "How I like to work" "$DIRECTIVES" "custom section preserved after write"
 
+# ── detect_vault ───────────────────────────────────────────────────────────────
+
+echo ""
+echo "detect_vault"
+
+source "$PROJECT_DIR/lib/vault.sh"
+
+FAKE_VAULT="$TMPDIR_BASE/vault_detect"
+mkdir -p "$FAKE_VAULT"
+FAKE_HOME="$TMPDIR_BASE/home_detect"
+mkdir -p "$FAKE_HOME/.claude"
+
+_ORIG_HOME="$HOME"
+HOME="$FAKE_HOME"
+
+write_install_config "$FAKE_VAULT" "$FAKE_HOME/.claude/CLAUDE.md" "global" "1.0.0"
+assert_file_exists "$FAKE_HOME/.claude/.vault-install" "install config written to correct location"
+
+VAULT_PATH=""
+CLAUDE_MD=""
+detect_vault
+assert_eq "$VAULT_PATH" "$FAKE_VAULT" "detect_vault returns vault path from install config"
+assert_eq "$CLAUDE_MD" "$FAKE_HOME/.claude/CLAUDE.md" "detect_vault returns CLAUDE.md path from install config"
+
+HOME="$_ORIG_HOME"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 echo ""
