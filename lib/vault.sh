@@ -12,8 +12,8 @@ write_install_config() {
 
   mkdir -p "$(dirname "$config_path")"
   cat > "$config_path" << EOF
-VAULT_PATH=$vault_path
-CLAUDE_MD=$claude_md
+VAULT_PATH="$vault_path"
+CLAUDE_MD="$claude_md"
 SCOPE=$scope
 VERSION=$version
 INSTALL_DATE=$(date +%Y-%m-%d)
