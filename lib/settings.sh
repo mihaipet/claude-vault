@@ -1,16 +1,61 @@
 #!/usr/bin/env bash
 # Shared settings logic — sourced by install.sh and configure.sh
 
+# Read current settings from an existing directives.md.
+# Sets: CURRENT_ROLE_DIRECTIVE, CURRENT_LENGTH_DIRECTIVE, CURRENT_CONFIRM_DIRECTIVE
+# Returns with empty strings if file missing or no settings block found.
+read_current_settings() {
+  local directives_file="$1"
+  CURRENT_ROLE_DIRECTIVE=""
+  CURRENT_LENGTH_DIRECTIVE=""
+  CURRENT_CONFIRM_DIRECTIVE=""
+
+  [ -f "$directives_file" ] || return
+
+  local in_block=0
+  local comm_count=0
+
+  while IFS= read -r line; do
+    case "$line" in
+      "<!-- vault-settings-start -->") in_block=1; continue ;;
+      "<!-- vault-settings-end -->")   break ;;
+    esac
+    [ "$in_block" = 0 ] && continue
+
+    # Role: non-empty content line after ## About me
+    if [[ "$line" =~ ^(I\ am\ a|Not\ set) ]]; then
+      CURRENT_ROLE_DIRECTIVE="$line"
+    fi
+
+    # Communication bullets — first two only
+    if [[ "$line" =~ ^-\  ]] && [ "$comm_count" -lt 2 ]; then
+      comm_count=$((comm_count + 1))
+      local value="${line#- }"
+      if [ "$comm_count" = 1 ]; then
+        CURRENT_LENGTH_DIRECTIVE="$value"
+      else
+        CURRENT_CONFIRM_DIRECTIVE="$value"
+      fi
+    fi
+  done < "$directives_file"
+}
+
+# Prompt for role, response length, and confirmation style.
+# Optional arg: path to existing directives.md — shows current values before each prompt.
 ask_settings() {
-  # Role
+  local directives_file="${1:-}"
+  [ -n "$directives_file" ] && read_current_settings "$directives_file"
+
+  # ── Role ────────────────────────────────────────────────────────────────────
   echo "What's your role?"
   echo "  1) Designer"
   echo "  2) Developer"
   echo "  3) Product manager"
   echo "  4) Researcher"
   echo "  5) Other / skip"
+  [ -n "$CURRENT_ROLE_DIRECTIVE" ] && echo "" && echo "  Current: $CURRENT_ROLE_DIRECTIVE"
   echo ""
-  read -p "Enter 1-5: " ROLE_CHOICE
+  read -p "Enter 1–5 (or press Enter to keep current): " ROLE_CHOICE
   echo ""
 
   case "$ROLE_CHOICE" in
@@ -18,72 +63,74 @@ ask_settings() {
     2) ROLE_DIRECTIVE="I am a developer. Be technically precise. Prefer code over descriptions where relevant." ;;
     3) ROLE_DIRECTIVE="I am a product manager. Structure recommendations clearly. Always flag trade-offs." ;;
     4) ROLE_DIRECTIVE="I am a researcher. Prioritise clarity, synthesis, and structured outputs." ;;
+    "") ROLE_DIRECTIVE="${CURRENT_ROLE_DIRECTIVE:-}" ;;
     *) ROLE_DIRECTIVE="" ;;
   esac
 
-  # Response length
+  # ── Response length ──────────────────────────────────────────────────────────
   echo "How much do you want Claude to explain?"
-  echo "  1) Concise - short answers, no padding (recommended)"
-  echo "  2) Detailed - explain reasoning, show the why"
+  echo "  1) Concise — short answers, no padding (recommended)"
+  echo "  2) Detailed — explain reasoning, show the why"
+  [ -n "$CURRENT_LENGTH_DIRECTIVE" ] && echo "" && echo "  Current: $CURRENT_LENGTH_DIRECTIVE"
   echo ""
-  read -p "Enter 1 or 2: " LENGTH_CHOICE
+  read -p "Enter 1 or 2 (or press Enter to keep current): " LENGTH_CHOICE
   echo ""
 
-  if [ "$LENGTH_CHOICE" = "2" ]; then
-    LENGTH_DIRECTIVE="Explain your reasoning. I want to understand the why behind recommendations."
-  else
-    LENGTH_DIRECTIVE="Be concise. Short answers. No padding, no unsolicited explanations."
-  fi
+  case "$LENGTH_CHOICE" in
+    1) LENGTH_DIRECTIVE="Be concise. Short answers. No padding, no unsolicited explanations." ;;
+    2) LENGTH_DIRECTIVE="Explain your reasoning. I want to understand the why behind recommendations." ;;
+    "") LENGTH_DIRECTIVE="${CURRENT_LENGTH_DIRECTIVE:-Be concise. Short answers. No padding, no unsolicited explanations.}" ;;
+    *) LENGTH_DIRECTIVE="Be concise. Short answers. No padding, no unsolicited explanations." ;;
+  esac
 
-  # Confirmation style
+  # ── Confirmation style ───────────────────────────────────────────────────────
   echo "How should Claude handle decisions?"
-  echo "  1) Confirm first - propose before doing anything (recommended)"
-  echo "  2) Proceed - flag uncertainty but keep moving"
+  echo "  1) Confirm first — propose before doing anything (recommended)"
+  echo "  2) Proceed — flag uncertainty but keep moving"
+  [ -n "$CURRENT_CONFIRM_DIRECTIVE" ] && echo "" && echo "  Current: $CURRENT_CONFIRM_DIRECTIVE"
   echo ""
-  read -p "Enter 1 or 2: " CONFIRM_CHOICE
+  read -p "Enter 1 or 2 (or press Enter to keep current): " CONFIRM_CHOICE
   echo ""
 
-  if [ "$CONFIRM_CHOICE" = "2" ]; then
-    CONFIRM_DIRECTIVE="Flag uncertainty but proceed. Only stop if something is destructive or irreversible."
-  else
-    CONFIRM_DIRECTIVE="Confirm before implementing. Propose first, wait for my approval."
-  fi
+  case "$CONFIRM_CHOICE" in
+    1) CONFIRM_DIRECTIVE="Confirm before implementing. Propose first, wait for my approval." ;;
+    2) CONFIRM_DIRECTIVE="Flag uncertainty but proceed. Only stop if something is destructive or irreversible." ;;
+    "") CONFIRM_DIRECTIVE="${CURRENT_CONFIRM_DIRECTIVE:-Confirm before implementing. Propose first, wait for my approval.}" ;;
+    *) CONFIRM_DIRECTIVE="Confirm before implementing. Propose first, wait for my approval." ;;
+  esac
 }
 
+# Write (or replace) the managed settings block in directives.md.
+# Only the block between vault-settings markers is touched. User content is preserved.
 write_settings_block() {
-  local DIRECTIVES_FILE="$1"
-  local TMPFILE="${DIRECTIVES_FILE}.tmp"
-  local BLOCK_FILE
-  BLOCK_FILE=$(mktemp)
+  local directives_file="$1"
+  local tmpfile="${directives_file}.tmp"
+  local block
+  block=$(mktemp)
 
-  if [ ! -f "$DIRECTIVES_FILE" ]; then
-    rm -f "$BLOCK_FILE"
-    return
-  fi
+  [ -f "$directives_file" ] || { rm -f "$block"; return; }
 
-  # Strip existing settings block if present
-  if grep -q "<!-- vault-settings-start -->" "$DIRECTIVES_FILE"; then
+  # Strip existing settings block — only the managed region, nothing else
+  if grep -q "<!-- vault-settings-start -->" "$directives_file"; then
     awk '
       /<!-- vault-settings-start -->/{skip=1; next}
       /<!-- vault-settings-end -->/{skip=0; next}
       !skip{print}
-    ' "$DIRECTIVES_FILE" > "$TMPFILE"
-    mv "$TMPFILE" "$DIRECTIVES_FILE"
+    ' "$directives_file" > "$tmpfile"
+    mv "$tmpfile" "$directives_file"
   fi
 
-  # Resolve role line
-  local ROLE_LINE
+  local role_line
   if [ -n "$ROLE_DIRECTIVE" ]; then
-    ROLE_LINE="$ROLE_DIRECTIVE"
+    role_line="$ROLE_DIRECTIVE"
   else
-    ROLE_LINE="Not set. Add your role to personalise Claude responses."
+    role_line="Not set. Add your role to personalise Claude responses."
   fi
 
-  # Write settings block to temp file
-  cat > "$BLOCK_FILE" << SETTINGS_EOF
+  cat > "$block" << BLOCK_EOF
 <!-- vault-settings-start -->
 ## About me
-$ROLE_LINE
+$role_line
 
 ## Communication
 - $LENGTH_DIRECTIVE
@@ -91,16 +138,26 @@ $ROLE_LINE
 - Ask one clarifying question at a time, not a list
 - If something is unclear, say so. Do not assume and proceed.
 <!-- vault-settings-end -->
-SETTINGS_EOF
+BLOCK_EOF
 
-  # Inject after first line (the # Directives heading)
-  {
-    head -n 1 "$DIRECTIVES_FILE"
-    echo ""
-    cat "$BLOCK_FILE"
-    echo ""
-    tail -n +2 "$DIRECTIVES_FILE"
-  } > "$TMPFILE"
-  mv "$TMPFILE" "$DIRECTIVES_FILE"
-  rm -f "$BLOCK_FILE"
+  # Find the # Directives heading by content, not by line number (fragility fix)
+  local heading_line
+  heading_line=$(grep -n "^# Directives" "$directives_file" | head -1 | cut -d: -f1)
+
+  if [ -n "$heading_line" ]; then
+    {
+      head -n "$heading_line" "$directives_file"
+      echo ""
+      cat "$block"
+      echo ""
+      tail -n +"$((heading_line + 1))" "$directives_file"
+    } > "$tmpfile"
+    mv "$tmpfile" "$directives_file"
+  else
+    # No heading — prepend block
+    { cat "$block"; echo ""; cat "$directives_file"; } > "$tmpfile"
+    mv "$tmpfile" "$directives_file"
+  fi
+
+  rm -f "$block"
 }
