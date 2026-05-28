@@ -16,7 +16,8 @@ list_plugins() {
 # Load plugin manifest variables into current environment.
 # Sets: PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION, PLUGIN_MIN_VAULT_VERSION
 load_plugin_manifest() {
-  local plugin_dir="$1"
+  local plugin_dir="${1%/}/"
+  [ -f "${plugin_dir}manifest.sh" ] || { echo "ERROR: no manifest.sh in $plugin_dir" >&2; return 1; }
   # shellcheck source=/dev/null
   source "${plugin_dir}manifest.sh"
 }
@@ -32,7 +33,7 @@ install_plugin() {
   load_plugin_manifest "$plugin_dir"
   echo "Installing plugin: $PLUGIN_NAME"
 
-  # Install skills
+  # Install skills — always overwritten (skills are plugin-owned; vault files are user-owned)
   if [ -d "${plugin_dir}skills" ]; then
     for skill_dir in "${plugin_dir}skills"/*/; do
       [ -d "$skill_dir" ] || continue
