@@ -167,6 +167,29 @@ assert_not_contains "<!-- claude-vault-start -->" "$FAKE_CLAUDE" "vault block re
 assert_contains "My existing content" "$FAKE_CLAUDE" "content before block preserved"
 assert_contains "Some content after" "$FAKE_CLAUDE" "content after block preserved"
 
+# ── install config round-trip ─────────────────────────────────────────────────
+
+echo ""
+echo "install config round-trip"
+
+FAKE_VAULT_RT="$TMPDIR_BASE/vault_rt"
+mkdir -p "$FAKE_VAULT_RT"
+FAKE_HOME_RT="$TMPDIR_BASE/home_rt"
+mkdir -p "$FAKE_HOME_RT/.claude"
+
+_ORIG_HOME_RT="$HOME"
+HOME="$FAKE_HOME_RT"
+
+write_install_config "$FAKE_VAULT_RT" "$FAKE_HOME_RT/.claude/CLAUDE.md" "global" "1.0.0"
+
+VAULT_PATH=""
+CLAUDE_MD=""
+detect_vault
+assert_eq "$VAULT_PATH" "$FAKE_VAULT_RT" "round-trip: vault path survives write/read"
+assert_eq "$CLAUDE_MD" "$FAKE_HOME_RT/.claude/CLAUDE.md" "round-trip: CLAUDE.md path survives write/read"
+
+HOME="$_ORIG_HOME_RT"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 echo ""

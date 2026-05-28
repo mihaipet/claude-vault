@@ -5,6 +5,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DATE=$(date +%Y-%m-%d)
 
 source "$SCRIPT_DIR/lib/settings.sh"
+source "$SCRIPT_DIR/lib/vault.sh"
+source "$SCRIPT_DIR/lib/version.sh"
+source "$SCRIPT_DIR/lib/plugins.sh"
 
 echo ""
 echo "================================"
@@ -14,7 +17,12 @@ echo ""
 
 # ── Re-run detection ──────────────────────────────────────────────────────────
 
-if [ -d "$HOME/.claude/vault" ] || ([ -f "$HOME/.claude/CLAUDE.md" ] && grep -q "claude-vault-start" "$HOME/.claude/CLAUDE.md" 2>/dev/null); then
+_is_reinstall=false
+if [ -f "$HOME/.claude/.vault-install" ] || [ -d "$HOME/.claude/vault" ]; then
+  _is_reinstall=true
+fi
+
+if $_is_reinstall; then
   echo "An existing install was found."
   echo ""
   echo "  1) Update settings only"
@@ -47,25 +55,26 @@ echo ""
 IS_PROJECT_SCOPED=false
 
 if [ "$INSTALL_SCOPE" = "2" ]; then
-  read -p "Full path to your project folder (e.g. /Users/yourname/Work/my-project): " PROJECT_PATH
+  read -p "Full path to your project folder: " PROJECT_PATH
   if [ ! -d "$PROJECT_PATH" ]; then
     echo "ERROR: Directory not found: $PROJECT_PATH"
-    echo "Check the path and run install.sh again."
     exit 1
   fi
   VAULT_PATH="$PROJECT_PATH/vault"
   CLAUDE_MD="$PROJECT_PATH/CLAUDE.md"
   IS_PROJECT_SCOPED=true
+  SCOPE="project"
 else
   VAULT_PATH="$HOME/.claude/vault"
   CLAUDE_MD="$HOME/.claude/CLAUDE.md"
+  SCOPE="global"
 fi
 
 SKILLS_DEST="$HOME/.claude/skills"
 
 # ── Step 3: Settings ──────────────────────────────────────────────────────────
 
-ask_settings
+ask_settings  # no existing directives file on first install
 
 # ── Step 4: Extra vault files ─────────────────────────────────────────────────
 
@@ -88,7 +97,7 @@ fi
 echo "Installing..."
 echo ""
 
-# ── Step 6: Install skills ────────────────────────────────────────────────────
+# ── Step 6: Install core skills ───────────────────────────────────────────────
 
 mkdir -p "$SKILLS_DEST/vault-edit"
 mkdir -p "$SKILLS_DEST/setup"
@@ -119,30 +128,17 @@ else
   echo "✓ directives.md already exists — skipped"
 fi
 
-# Extra files
 for choice in $EXTRA_FILES_CHOICE; do
   case "$choice" in
-    1)
-      if [ ! -f "$VAULT_PATH/team.md" ]; then
-        cp "$SCRIPT_DIR/templates/team.md" "$VAULT_PATH/team.md"
-        echo "✓ team.md created"
-      else
-        echo "✓ team.md already exists — skipped"
-      fi ;;
-    2)
-      if [ ! -f "$VAULT_PATH/goals.md" ]; then
-        cp "$SCRIPT_DIR/templates/goals.md" "$VAULT_PATH/goals.md"
-        echo "✓ goals.md created"
-      else
-        echo "✓ goals.md already exists — skipped"
-      fi ;;
-    3)
-      if [ ! -f "$VAULT_PATH/stack.md" ]; then
-        cp "$SCRIPT_DIR/templates/stack.md" "$VAULT_PATH/stack.md"
-        echo "✓ stack.md created"
-      else
-        echo "✓ stack.md already exists — skipped"
-      fi ;;
+    1) if [ ! -f "$VAULT_PATH/team.md" ]; then
+         cp "$SCRIPT_DIR/templates/team.md" "$VAULT_PATH/team.md" && echo "✓ team.md created"
+       else echo "✓ team.md already exists — skipped"; fi ;;
+    2) if [ ! -f "$VAULT_PATH/goals.md" ]; then
+         cp "$SCRIPT_DIR/templates/goals.md" "$VAULT_PATH/goals.md" && echo "✓ goals.md created"
+       else echo "✓ goals.md already exists — skipped"; fi ;;
+    3) if [ ! -f "$VAULT_PATH/stack.md" ]; then
+         cp "$SCRIPT_DIR/templates/stack.md" "$VAULT_PATH/stack.md" && echo "✓ stack.md created"
+       else echo "✓ stack.md already exists — skipped"; fi ;;
   esac
 done
 
@@ -191,6 +187,38 @@ else
   echo "✓ CLAUDE.md created"
 fi
 
+# ── Step 10: Write install config ─────────────────────────────────────────────
+
+write_install_config "$VAULT_PATH" "$CLAUDE_MD" "$SCOPE" "$VAULT_VERSION"
+echo "✓ Install config saved"
+
+# ── Step 11: Optional plugins ─────────────────────────────────────────────────
+
+PLUGINS_DIR="$SCRIPT_DIR/plugins"
+AVAILABLE=$(list_plugins "$PLUGINS_DIR")
+
+if [ -n "$AVAILABLE" ]; then
+  echo ""
+  echo "Optional plugins available:"
+  echo ""
+  i=1
+  PLUGIN_NAMES=""
+  for plugin in $AVAILABLE; do
+    load_plugin_manifest "$PLUGINS_DIR/$plugin"
+    echo "  $i) $PLUGIN_NAME — $PLUGIN_DESCRIPTION"
+    PLUGIN_NAMES="$PLUGIN_NAMES $plugin"
+    i=$((i+1))
+  done
+  echo ""
+  read -p "Install plugins? Enter numbers separated by spaces, or press Enter to skip: " PLUGIN_CHOICES
+  echo ""
+
+  for choice in $PLUGIN_CHOICES; do
+    selected=$(echo "$PLUGIN_NAMES" | tr ' ' '\n' | grep -v '^$' | sed -n "${choice}p")
+    [ -n "$selected" ] && install_plugin "$PLUGINS_DIR/$selected" "$VAULT_PATH" "$SKILLS_DEST"
+  done
+fi
+
 # ── Done ──────────────────────────────────────────────────────────────────────
 
 echo ""
@@ -203,33 +231,18 @@ echo "  $VAULT_PATH/memory.md"
 echo "  $VAULT_PATH/directives.md"
 echo ""
 echo "────────────────────────────────"
-echo "  Commands available in Claude Code"
+echo "  Commands in Claude Code"
 echo "────────────────────────────────"
 echo ""
-echo "  /vault-edit"
-echo "    Update your second brain after a session."
-echo "    Use it to log decisions, lessons, and open questions."
-echo "    Also use it to add a new rule or create a new vault file."
-echo ""
-echo "  /setup"
-echo "    Review and change your settings from inside Claude Code."
-echo "    Change your role, response style, or confirmation behaviour"
-echo "    without leaving your session."
+echo "  /vault-edit   Update your second brain after a session"
+echo "  /setup        Review and change settings"
 echo ""
 echo "────────────────────────────────"
-echo "  Changing settings from the terminal"
+echo "  From the terminal"
 echo "────────────────────────────────"
 echo ""
-echo "  ./configure.sh"
-echo "    Re-runs the settings questions and updates directives.md."
-echo "    Never touches your vault content."
-echo ""
-echo "────────────────────────────────"
-echo "  What Claude reads every session"
-echo "────────────────────────────────"
-echo ""
-echo "  memory.md      → your current focus, recent decisions, open questions"
-echo "  directives.md  → standing rules Claude always follows"
+echo "  ./configure.sh   Update settings"
+echo "  ./uninstall.sh   Remove Claude Vault"
 echo ""
 echo "Fill in memory.md with your current focus to get started."
 echo ""
