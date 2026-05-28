@@ -29,7 +29,7 @@ Claude forgets everything when a session ends. This gives it a place to remember
 ```bash
 git clone https://github.com/your-username/claude-vault.git
 cd claude-vault
-chmod +x install.sh configure.sh
+chmod +x install.sh configure.sh uninstall.sh
 ./install.sh
 ```
 
@@ -98,12 +98,35 @@ Type `/setup` to:
 
 ---
 
+## Plugins
+
+Plugins extend your vault with domain-specific templates and skills.
+The plugin architecture is in place — first plugins are coming soon.
+
+**Planned:**
+- `design-system` — import and maintain design system context (tokens, components, conventions)
+
+Plugins are offered during install. To install a plugin after the initial setup, re-run `install.sh` and choose option 2 — your vault files are preserved.
+
+---
+
+## Uninstall
+
+```bash
+./uninstall.sh
+```
+
+Removes the vault block from CLAUDE.md, uninstalls skills (`/vault-edit`, `/setup`), and deletes the install config. Your vault files (`memory.md`, `directives.md`, etc.) are never deleted — they stay at their install location. Delete them manually if you no longer need them.
+
+---
+
 ## File structure after install
 
 **Global install:**
 ```
 ~/.claude/
   CLAUDE.md               ← vault reference, read by Claude in every project
+  .vault-install          ← install config, enables auto-detection across sessions
   skills/
     vault-edit/SKILL.md   ← /vault-edit skill
     setup/SKILL.md        ← /setup skill
