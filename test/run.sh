@@ -190,6 +190,82 @@ assert_eq "$CLAUDE_MD" "$FAKE_HOME_RT/.claude/CLAUDE.md" "round-trip: CLAUDE.md 
 
 HOME="$_ORIG_HOME_RT"
 
+# ── list_plugins ───────────────────────────────────────────────────────────────
+
+echo ""
+echo "list_plugins"
+
+source "$PROJECT_DIR/lib/plugins.sh"
+
+FAKE_PLUGINS="$TMPDIR_BASE/plugins"
+mkdir -p "$FAKE_PLUGINS/plugin-a"
+mkdir -p "$FAKE_PLUGINS/plugin-b"
+mkdir -p "$FAKE_PLUGINS/not-a-plugin"   # no manifest — must be ignored
+
+cat > "$FAKE_PLUGINS/plugin-a/manifest.sh" << 'EOF'
+PLUGIN_NAME="plugin-a"
+PLUGIN_VERSION="1.0.0"
+PLUGIN_DESCRIPTION="Test plugin A"
+PLUGIN_MIN_VAULT_VERSION="1.0.0"
+EOF
+
+cat > "$FAKE_PLUGINS/plugin-b/manifest.sh" << 'EOF'
+PLUGIN_NAME="plugin-b"
+PLUGIN_VERSION="1.0.0"
+PLUGIN_DESCRIPTION="Test plugin B"
+PLUGIN_MIN_VAULT_VERSION="1.0.0"
+EOF
+
+FOUND_FILE="$TMPDIR_BASE/plugins_found.txt"
+list_plugins "$FAKE_PLUGINS" > "$FOUND_FILE"
+
+assert_contains "plugin-a" "$FOUND_FILE" "list_plugins finds plugin-a"
+assert_contains "plugin-b" "$FOUND_FILE" "list_plugins finds plugin-b"
+assert_not_contains "not-a-plugin" "$FOUND_FILE" "list_plugins skips dirs without manifest.sh"
+
+# ── install_plugin ─────────────────────────────────────────────────────────────
+
+echo ""
+echo "install_plugin"
+
+FAKE_PLUGIN_DIR="$TMPDIR_BASE/test_plugin/"
+FAKE_PLUGIN_VAULT="$TMPDIR_BASE/test_plugin_vault"
+FAKE_PLUGIN_SKILLS="$TMPDIR_BASE/test_plugin_skills"
+mkdir -p "${FAKE_PLUGIN_DIR}skills/my-skill"
+mkdir -p "${FAKE_PLUGIN_DIR}templates"
+mkdir -p "$FAKE_PLUGIN_VAULT"
+mkdir -p "$FAKE_PLUGIN_SKILLS"
+
+cat > "${FAKE_PLUGIN_DIR}manifest.sh" << 'EOF'
+PLUGIN_NAME="test-plugin"
+PLUGIN_VERSION="1.0.0"
+PLUGIN_DESCRIPTION="Test plugin for install_plugin"
+PLUGIN_MIN_VAULT_VERSION="1.0.0"
+EOF
+
+cat > "${FAKE_PLUGIN_DIR}skills/my-skill/SKILL.md" << 'EOF'
+---
+name: my-skill
+description: A test skill
+---
+# My Skill
+EOF
+
+cat > "${FAKE_PLUGIN_DIR}templates/my-template.md" << 'EOF'
+# My Template
+Test content
+EOF
+
+install_plugin "$FAKE_PLUGIN_DIR" "$FAKE_PLUGIN_VAULT" "$FAKE_PLUGIN_SKILLS"
+
+assert_file_exists "$FAKE_PLUGIN_SKILLS/my-skill/SKILL.md" "plugin skill installed to skills dir"
+assert_file_exists "$FAKE_PLUGIN_VAULT/my-template.md" "plugin template copied to vault"
+
+# Existing template must NOT be overwritten
+echo "existing content" > "$FAKE_PLUGIN_VAULT/my-template.md"
+install_plugin "$FAKE_PLUGIN_DIR" "$FAKE_PLUGIN_VAULT" "$FAKE_PLUGIN_SKILLS"
+assert_contains "existing content" "$FAKE_PLUGIN_VAULT/my-template.md" "existing vault file not overwritten by plugin reinstall"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 echo ""
