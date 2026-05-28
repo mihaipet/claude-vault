@@ -134,6 +134,39 @@ assert_eq "$CLAUDE_MD" "$FAKE_HOME/.claude/CLAUDE.md" "detect_vault returns CLAU
 
 HOME="$_ORIG_HOME"
 
+# ── uninstall: CLAUDE.md block removal ────────────────────────────────────────
+
+echo ""
+echo "uninstall — CLAUDE.md block removal"
+
+FAKE_CLAUDE="$TMPDIR_BASE/CLAUDE_uninstall.md"
+cat > "$FAKE_CLAUDE" << 'CLAUDE_EOF'
+# My existing content
+
+Some content before the vault block.
+
+<!-- claude-vault-start -->
+
+## Vault
+- /path/to/vault/memory.md
+- /path/to/vault/directives.md
+
+<!-- claude-vault-end -->
+
+Some content after the vault block.
+CLAUDE_EOF
+
+awk '
+  /<!-- claude-vault-start -->/{skip=1; next}
+  /<!-- claude-vault-end -->/{skip=0; next}
+  !skip{print}
+' "$FAKE_CLAUDE" > "$FAKE_CLAUDE.tmp"
+mv "$FAKE_CLAUDE.tmp" "$FAKE_CLAUDE"
+
+assert_not_contains "<!-- claude-vault-start -->" "$FAKE_CLAUDE" "vault block removed from CLAUDE.md"
+assert_contains "My existing content" "$FAKE_CLAUDE" "content before block preserved"
+assert_contains "Some content after" "$FAKE_CLAUDE" "content after block preserved"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 echo ""
