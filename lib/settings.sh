@@ -13,6 +13,7 @@ read_current_settings() {
   [ -f "$directives_file" ] || return
 
   local in_block=0
+  local in_about=0
   local comm_count=0
 
   while IFS= read -r line; do
@@ -22,8 +23,17 @@ read_current_settings() {
     esac
     [ "$in_block" = 0 ] && continue
 
-    # Role: non-empty content line after ## About me
-    if [[ "$line" =~ ^(I\ am\ a|Not\ set) ]]; then
+    # Track sections by heading
+    if [[ "$line" =~ ^##\  ]]; then
+      in_about=0
+      if [[ "$line" = "## About me" ]]; then
+        in_about=1
+      fi
+      continue
+    fi
+
+    # Role: first non-empty line after ## About me
+    if [ "$in_about" = 1 ] && [ -n "$line" ] && [ -z "$CURRENT_ROLE_DIRECTIVE" ]; then
       CURRENT_ROLE_DIRECTIVE="$line"
     fi
 
