@@ -27,7 +27,7 @@ Claude forgets everything when a session ends. This gives it a place to remember
 ## Install
 
 ```bash
-git clone https://github.com/your-username/claude-vault.git
+git clone https://github.com/mihaipet/claude-vault.git
 cd claude-vault
 chmod +x install.sh configure.sh uninstall.sh
 ./install.sh
