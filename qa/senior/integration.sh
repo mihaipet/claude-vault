@@ -64,6 +64,7 @@ assert_dir_exists  "$SKILLS/save-memory"       "skill save-memory installed"
 assert_dir_exists  "$SKILLS/note"              "skill note installed"
 assert_dir_exists  "$SKILLS/vault-edit"        "skill vault-edit installed"
 assert_dir_exists  "$SKILLS/setup"             "skill setup installed"
+assert_dir_exists  "$SKILLS/update"            "skill update installed"
 
 assert_contains    "Test User"    "$VAULT/memory.md"  "memory.md contains user name"
 assert_contains    "Test Project" "$VAULT/memory.md"  "memory.md contains project name"
@@ -71,6 +72,7 @@ assert_contains    "Test Project" "$VAULT/memory.md"  "memory.md contains projec
 assert_contains    "<!-- claude-vault-start -->" "$CLAUDE_MD" "CLAUDE.md contains vault start marker"
 
 assert_contains    "VAULT_PATH" "$INT001_HOME/.claude/.vault-install" ".vault-install contains VAULT_PATH"
+assert_contains    "REPO_PATH"  "$INT001_HOME/.claude/.vault-install" ".vault-install contains REPO_PATH"
 
 assert_contains    "PERSONA_SETUP=skip" "$INT001_HOME/.claude/.vault-persona" ".vault-persona contains PERSONA_SETUP=skip"
 
@@ -173,6 +175,10 @@ assert_not_contains "<!-- claude-vault-start -->" "$CLAUDE_MD007" "vault block r
   && pass "skill setup removed" \
   || fail "skill setup still present"
 
+[ ! -d "$INT007_HOME/.claude/skills/update" ] \
+  && pass "skill update removed" \
+  || fail "skill update still present"
+
 assert_file_exists  "$INT007_HOME/.claude/vault/memory.md" "memory.md preserved after uninstall"
 assert_file_missing "$INT007_HOME/.claude/.vault-install"  ".vault-install removed"
 echo ""
@@ -220,6 +226,7 @@ assert_file_exists "$INT009_HOME/.claude/skills/save-memory/SKILL.md" "save-memo
 assert_file_exists "$INT009_HOME/.claude/skills/note/SKILL.md"        "note skill present"
 assert_contains    "USER_NAME"    "$INT009_HOME/.claude/.vault-install" ".vault-install has USER_NAME"
 assert_contains    "PROJECT_NAME" "$INT009_HOME/.claude/.vault-install" ".vault-install has PROJECT_NAME"
+assert_contains    "REPO_PATH"    "$INT009_HOME/.claude/.vault-install" ".vault-install has REPO_PATH"
 
 echo ""
 

@@ -24,7 +24,7 @@ echo "Found vault at: $VAULT_PATH"
 echo ""
 echo "This will remove:"
 echo "  - Vault block from CLAUDE.md"
-echo "  - Skills /vault-edit, /setup, /load-memory, /save-memory, /note from ~/.claude/skills/"
+echo "  - Skills /vault-edit, /setup, /load-memory, /save-memory, /note, /update from ~/.claude/skills/"
 echo "  - Install config at ~/.claude/.vault-install"
 echo ""
 echo "This will NOT touch:"
@@ -56,7 +56,7 @@ fi
 
 # ── Remove skills ─────────────────────────────────────────────────────────────
 
-for skill in vault-edit setup load-memory save-memory note; do
+for skill in vault-edit setup load-memory save-memory note update; do
   skill_path="$HOME/.claude/skills/$skill"
   if [ -d "$skill_path" ]; then
     rm -rf "$skill_path"

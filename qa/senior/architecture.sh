@@ -17,7 +17,6 @@ info() { echo "     [INFO] $1"; }
 echo ""
 echo "── ARCH-001: Uninstall removes ALL installed skills ────────────────────────"
 echo ""
-# install.sh now installs 5 skills. uninstall.sh only removes 2.
 installed=$(grep 'mkdir -p.*SKILLS_DEST' "$REPO/install.sh" | grep -v '#' | wc -l | tr -d ' ')
 removed=$(grep 'for skill in' "$REPO/uninstall.sh" | grep -oP '(?<=in ).*(?=;)' | tr ' ' '\n' | grep -v '^$' | wc -l | tr -d ' ')
 
@@ -26,8 +25,7 @@ info "Skills removed by uninstall.sh: $removed"
 
 if [ "$installed" -gt "$removed" ]; then
   bug "ARCH-001 uninstall.sh removes $removed skills but install.sh installs $installed."
-  info "Missing from uninstall: load-memory, save-memory, note"
-  info "Fix: update 'for skill in ...' loop in uninstall.sh to include all 5 skills."
+  info "Fix: update 'for skill in ...' loop in uninstall.sh to include all skills."
 else
   pass "ARCH-001 uninstall removes all installed skills"
 fi

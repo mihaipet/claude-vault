@@ -142,11 +142,13 @@ mkdir -p "$SKILLS_DEST/setup"
 mkdir -p "$SKILLS_DEST/load-memory"
 mkdir -p "$SKILLS_DEST/save-memory"
 mkdir -p "$SKILLS_DEST/note"
-cp "$SCRIPT_DIR/skills/vault-edit/SKILL.md" "$SKILLS_DEST/vault-edit/SKILL.md"
-cp "$SCRIPT_DIR/skills/setup/SKILL.md" "$SKILLS_DEST/setup/SKILL.md"
-cp "$SCRIPT_DIR/skills/load-memory/SKILL.md" "$SKILLS_DEST/load-memory/SKILL.md"
-cp "$SCRIPT_DIR/skills/save-memory/SKILL.md" "$SKILLS_DEST/save-memory/SKILL.md"
-cp "$SCRIPT_DIR/skills/note/SKILL.md" "$SKILLS_DEST/note/SKILL.md"
+mkdir -p "$SKILLS_DEST/update"
+cp "$SCRIPT_DIR/skills/vault-edit/SKILL.md"   "$SKILLS_DEST/vault-edit/SKILL.md"
+cp "$SCRIPT_DIR/skills/setup/SKILL.md"        "$SKILLS_DEST/setup/SKILL.md"
+cp "$SCRIPT_DIR/skills/load-memory/SKILL.md"  "$SKILLS_DEST/load-memory/SKILL.md"
+cp "$SCRIPT_DIR/skills/save-memory/SKILL.md"  "$SKILLS_DEST/save-memory/SKILL.md"
+cp "$SCRIPT_DIR/skills/note/SKILL.md"         "$SKILLS_DEST/note/SKILL.md"
+cp "$SCRIPT_DIR/skills/update/SKILL.md"       "$SKILLS_DEST/update/SKILL.md"
 echo "✓ Skills installed to $SKILLS_DEST"
 
 # ── Step 7: Create vault and files ────────────────────────────────────────────
@@ -211,7 +213,7 @@ Persistent context files loaded every session.
 
 Read both at the start of every session.
 
-Skills: /load-memory (reload context mid-session), /save-memory (checkpoint session to vault), /note (quick-capture a single decision), /vault-edit (manual edits), /setup (change settings).
+Skills: /load-memory (reload context mid-session), /save-memory (checkpoint session to vault), /note (quick-capture a single decision), /vault-edit (manual edits), /setup (change settings), /update (check for and apply vault updates).
 <!-- claude-vault-end -->"
 
 mkdir -p "$(dirname "$CLAUDE_MD")"
@@ -235,7 +237,7 @@ fi
 
 # ── Step 10: Write install config ─────────────────────────────────────────────
 
-write_install_config "$VAULT_PATH" "$CLAUDE_MD" "$SCOPE" "$VAULT_VERSION" "$USER_NAME" "$PROJECT_NAME" "${PROJECT_PATH:-}"
+write_install_config "$VAULT_PATH" "$CLAUDE_MD" "$SCOPE" "$VAULT_VERSION" "$USER_NAME" "$PROJECT_NAME" "${PROJECT_PATH:-}" "$SCRIPT_DIR"
 echo "✓ Install config saved"
 
 # ── Step 11: Optional plugins ─────────────────────────────────────────────────
@@ -285,11 +287,13 @@ echo "  /save-memory  Checkpoint session to vault (bonfire lit)"
 echo "  /note         Quick-capture a single decision mid-session"
 echo "  /vault-edit   Update vault files manually"
 echo "  /setup        Review and change settings"
+echo "  /update       Check installed version and how to update"
 echo ""
 echo "────────────────────────────────"
 echo "  From the terminal"
 echo "────────────────────────────────"
 echo ""
+echo "  ./update.sh      Check for and apply updates"
 echo "  ./configure.sh   Update settings"
 echo "  ./uninstall.sh   Remove Claude Vault"
 echo ""
