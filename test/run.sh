@@ -266,6 +266,48 @@ echo "existing content" > "$FAKE_PLUGIN_VAULT/my-template.md"
 install_plugin "$FAKE_PLUGIN_DIR" "$FAKE_PLUGIN_VAULT" "$FAKE_PLUGIN_SKILLS"
 assert_contains "existing content" "$FAKE_PLUGIN_VAULT/my-template.md" "existing vault file not overwritten by plugin reinstall"
 
+# ── write_persona_block ───────────────────────────────────────────────────────
+
+echo ""
+echo "write_persona_block"
+
+PERSONA_DIR="$TMPDIR_BASE/persona"
+mkdir -p "$PERSONA_DIR"
+
+# skip → nothing written
+PERSONA_FILE="$PERSONA_DIR/directives_skip.md"
+echo "# Directives" > "$PERSONA_FILE"
+PERSONA_CHOICE="skip" AI_NAME="" USER_PERSONA_WANTS_NAME=false write_persona_block "$PERSONA_FILE"
+assert_not_contains "vault-persona-start" "$PERSONA_FILE" "skip: no persona block written"
+
+# empty PERSONA_CHOICE → nothing written (reinstall case)
+PERSONA_FILE="$PERSONA_DIR/directives_empty.md"
+echo "# Directives" > "$PERSONA_FILE"
+PERSONA_CHOICE="" AI_NAME="" USER_PERSONA_WANTS_NAME=false write_persona_block "$PERSONA_FILE"
+assert_not_contains "vault-persona-start" "$PERSONA_FILE" "empty choice: no persona block written"
+
+# named without user name
+PERSONA_FILE="$PERSONA_DIR/directives_named.md"
+echo "# Directives" > "$PERSONA_FILE"
+USER_NAME="" USER_PERSONA_WANTS_NAME=false PERSONA_CHOICE="named" AI_NAME="Aria" write_persona_block "$PERSONA_FILE"
+assert_contains "vault-persona-start" "$PERSONA_FILE" "named: persona block written"
+assert_contains "Your name is Aria." "$PERSONA_FILE" "named: AI name written"
+assert_not_contains "Address the user" "$PERSONA_FILE" "named: no user address line when USER_PERSONA_WANTS_NAME=false"
+
+# named with user name
+PERSONA_FILE="$PERSONA_DIR/directives_named_user.md"
+echo "# Directives" > "$PERSONA_FILE"
+USER_NAME="Alex" USER_PERSONA_WANTS_NAME=true PERSONA_CHOICE="named" AI_NAME="Max" write_persona_block "$PERSONA_FILE"
+assert_contains "Your name is Max." "$PERSONA_FILE" "named+user: AI name written"
+assert_contains "Address the user as Alex." "$PERSONA_FILE" "named+user: user address line written"
+
+# ai-choose
+PERSONA_FILE="$PERSONA_DIR/directives_ai_choose.md"
+echo "# Directives" > "$PERSONA_FILE"
+PERSONA_CHOICE="ai-choose" AI_NAME="choose" USER_PERSONA_WANTS_NAME=false write_persona_block "$PERSONA_FILE"
+assert_contains "vault-persona-start" "$PERSONA_FILE" "ai-choose: persona block written"
+assert_contains "not been given a name yet" "$PERSONA_FILE" "ai-choose: self-naming directive written"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 echo ""

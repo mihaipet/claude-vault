@@ -94,6 +94,10 @@ if [ "$IS_PROJECT_SCOPED" = true ]; then
   echo ""
 fi
 
+# ── Step 5b: Persona setup (one-time, never repeats) ─────────────────────────
+
+ask_persona_setup
+
 echo "Installing..."
 echo ""
 
@@ -101,8 +105,12 @@ echo ""
 
 mkdir -p "$SKILLS_DEST/vault-edit"
 mkdir -p "$SKILLS_DEST/setup"
+mkdir -p "$SKILLS_DEST/load-memory"
+mkdir -p "$SKILLS_DEST/save-memory"
 cp "$SCRIPT_DIR/skills/vault-edit/SKILL.md" "$SKILLS_DEST/vault-edit/SKILL.md"
 cp "$SCRIPT_DIR/skills/setup/SKILL.md" "$SKILLS_DEST/setup/SKILL.md"
+cp "$SCRIPT_DIR/skills/load-memory/SKILL.md" "$SKILLS_DEST/load-memory/SKILL.md"
+cp "$SCRIPT_DIR/skills/save-memory/SKILL.md" "$SKILLS_DEST/save-memory/SKILL.md"
 echo "✓ Skills installed to $SKILLS_DEST"
 
 # ── Step 7: Create vault and files ────────────────────────────────────────────
@@ -123,6 +131,7 @@ fi
 if [ ! -f "$VAULT_PATH/directives.md" ]; then
   cp "$SCRIPT_DIR/templates/directives.md" "$VAULT_PATH/directives.md"
   write_settings_block "$VAULT_PATH/directives.md"
+  write_persona_block "$VAULT_PATH/directives.md"
   echo "✓ directives.md created"
 else
   echo "✓ directives.md already exists — skipped"
@@ -161,11 +170,12 @@ VAULT_BLOCK="<!-- claude-vault-start -->
 ## Vault
 Persistent context files loaded every session.
 
-- \`$VAULT_PATH/memory.md\` — current project state, recent decisions, lessons learned
+- \`$VAULT_PATH/memory.md\` — current project state, next tasks, recent decisions, lessons learned
 - \`$VAULT_PATH/directives.md\` — standing rules, always follow these
 
-Read both at the start of every session. Use /vault-edit to update them.
-To change your settings, run \`configure.sh\` or type /setup in Claude Code.
+Read both at the start of every session.
+
+Skills: /load-memory (reload context mid-session), /save-memory (checkpoint session to vault), /vault-edit (manual edits), /setup (change settings).
 <!-- claude-vault-end -->"
 
 mkdir -p "$(dirname "$CLAUDE_MD")"
@@ -234,7 +244,9 @@ echo "────────────────────────�
 echo "  Commands in Claude Code"
 echo "────────────────────────────────"
 echo ""
-echo "  /vault-edit   Update your second brain after a session"
+echo "  /load-memory  Reload vault context mid-session"
+echo "  /save-memory  Checkpoint session to vault (bonfire lit)"
+echo "  /vault-edit   Update vault files manually"
 echo "  /setup        Review and change settings"
 echo ""
 echo "────────────────────────────────"

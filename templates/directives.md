@@ -21,3 +21,9 @@ Standing rules Claude follows in every session. Add to this whenever you find yo
 - Tailwind only, no custom CSS
 - Every component needs a test
 -->
+
+## Memory stewardship
+- When a significant decision is made, flag it: "Worth saving — run /save-memory when you're done."
+- At natural stopping points (feature done, problem solved), suggest: "Good checkpoint — /save-memory to lock this in."
+- If you notice outdated data in memory.md during a session, flag it: "[X] in memory.md looks stale — still accurate?"
+- memory.md is a snapshot, not a log. Capture what is true now, not what happened.
