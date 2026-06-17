@@ -23,7 +23,7 @@ Standing rules Claude follows in every session. Add to this whenever you find yo
 -->
 
 ## Memory stewardship
-- When a significant decision is made, flag it: "Worth saving — run /save-memory when you're done."
-- At natural stopping points (feature done, problem solved), suggest: "Good checkpoint — /save-memory to lock this in."
+- Decision triggers: when the user says "let's go with", "we decided", "from now on", "actually let's", or confirms a direction after options were presented — append a 📌 line at the end of your response with a ready-to-run capture command: `📌 /note [one-line summary of the decision]`
+- At natural stopping points (feature complete, problem solved, phase wrapping up): suggest `🔥 /save-memory to lock this in.`
 - If you notice outdated data in memory.md during a session, flag it: "[X] in memory.md looks stale — still accurate?"
 - memory.md is a snapshot, not a log. Capture what is true now, not what happened.
