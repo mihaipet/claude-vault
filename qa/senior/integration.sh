@@ -230,6 +230,74 @@ assert_contains    "REPO_PATH"    "$INT009_HOME/.claude/.vault-install" ".vault-
 
 echo ""
 
+# ─── TC-INT-010: update.sh — version check and update flow ───────────────────
+echo "TC-INT-010: update.sh — version check, accept, decline"
+INT010_HOME="$(mktemp -d)"
+export HOME="$INT010_HOME"
+
+INT010_REMOTE="$(mktemp -d)"
+INT010_LOCAL="$(mktemp -d)"
+
+# Set up a bare remote and a local vault copy pointing to it
+git init --bare "$INT010_REMOTE" --quiet
+git -C "$INT010_REMOTE" symbolic-ref HEAD refs/heads/main  # bare repo defaults to master; fix it
+cp -r "$REPO"/. "$INT010_LOCAL/"
+rm -rf "$INT010_LOCAL/.git"   # strip live .git before reinitializing
+git -C "$INT010_LOCAL" init -b main --quiet
+git -C "$INT010_LOCAL" config user.email "qa@test"
+git -C "$INT010_LOCAL" config user.name "QA"
+git -C "$INT010_LOCAL" config commit.gpgsign false  # signing is global; disable for test repo
+git -C "$INT010_LOCAL" add -A
+git -C "$INT010_LOCAL" commit -m "initial" --quiet
+git -C "$INT010_LOCAL" remote add origin "$INT010_REMOTE"
+git -C "$INT010_LOCAL" push origin main --quiet 2>/dev/null || true
+
+# Fresh install into INT010_HOME so use-existing path works after update
+fresh_install_stdin | bash "$INT010_LOCAL/install.sh" >/dev/null 2>&1 || true
+
+# ── A: same version → up to date ─────────────────────────────────────────────
+_output=$(bash "$INT010_LOCAL/update.sh" 2>&1 || true)
+echo "$_output" | grep -qi "up to date" \
+  && pass "TC-INT-010a: reports up to date when versions match" \
+  || fail "TC-INT-010a: did not report up to date"
+
+# ── B: bump remote version → accept update ───────────────────────────────────
+INT010_CLONE="$(mktemp -d)"
+git clone "$INT010_REMOTE" "$INT010_CLONE" --quiet 2>/dev/null || true
+git -C "$INT010_CLONE" config user.email "qa@test"
+git -C "$INT010_CLONE" config user.name "QA"
+git -C "$INT010_CLONE" config commit.gpgsign false
+echo "99.0.0" > "$INT010_CLONE/VERSION"
+git -C "$INT010_CLONE" add VERSION
+git -C "$INT010_CLONE" commit -m "bump to 99.0.0" --quiet
+git -C "$INT010_CLONE" push --quiet 2>/dev/null || true
+
+_output=$(printf 'y\n' | bash "$INT010_LOCAL/update.sh" 2>&1 || true)
+echo "$_output" | grep -q "Pulled\|Pulling" \
+  && pass "TC-INT-010b: pulled when update accepted" \
+  || fail "TC-INT-010b: did not pull"
+_local_ver=$(cat "$INT010_LOCAL/VERSION" 2>/dev/null || echo "")
+[ "$_local_ver" = "99.0.0" ] \
+  && pass "TC-INT-010b: VERSION updated to 99.0.0" \
+  || fail "TC-INT-010b: VERSION not updated (got: $_local_ver)"
+
+# ── C: bump remote again → decline update ────────────────────────────────────
+echo "100.0.0" > "$INT010_CLONE/VERSION"
+git -C "$INT010_CLONE" add VERSION
+git -C "$INT010_CLONE" commit -m "bump to 100.0.0" --quiet
+git -C "$INT010_CLONE" push --quiet 2>/dev/null || true
+
+_output=$(printf 'n\n' | bash "$INT010_LOCAL/update.sh" 2>&1 || true)
+echo "$_output" | grep -qi "cancel" \
+  && pass "TC-INT-010c: cancelled when user declines" \
+  || fail "TC-INT-010c: did not cancel"
+_local_ver=$(cat "$INT010_LOCAL/VERSION" 2>/dev/null || echo "")
+[ "$_local_ver" = "99.0.0" ] \
+  && pass "TC-INT-010c: VERSION unchanged after declining" \
+  || fail "TC-INT-010c: VERSION changed after declining (got: $_local_ver)"
+
+echo ""
+
 # ─────────────────────────────────────────────────────────────────────────────
 echo "================================"
 echo "  Integration results: $PASS passed, $FAIL failed"
