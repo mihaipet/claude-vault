@@ -31,7 +31,7 @@ Perform a full vault reload. Read every vault file and internalize it before con
 
 3. Apply the directives immediately. They are active from this moment.
 
-4. Respond with: **"I know kung fu."**
+4. Respond with: **"🧠 I know kung fu."**
 
    Follow with a single short paragraph:
    - What project you're in and where things stand

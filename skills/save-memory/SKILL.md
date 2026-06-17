@@ -41,7 +41,7 @@ Save a checkpoint. Extract what matters from this session and merge it into the 
 
 5. If new standing rules or preferences emerged during the session, propose specific additions to `directives.md`. Show exactly what you would add. Write only after the user confirms.
 
-6. Respond with: **"Bonfire lit, memory preserved."**
+6. Respond with: **"🔥 Bonfire lit, memory preserved."**
 
    Follow with a brief bullet list of what changed.
 
