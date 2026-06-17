@@ -24,7 +24,7 @@ echo "Found vault at: $VAULT_PATH"
 echo ""
 echo "This will remove:"
 echo "  - Vault block from CLAUDE.md"
-echo "  - Skills /vault-edit and /setup from ~/.claude/skills/"
+echo "  - Skills /vault-edit, /setup, /load-memory, /save-memory, /note, /update from ~/.claude/skills/"
 echo "  - Install config at ~/.claude/.vault-install"
 echo ""
 echo "This will NOT touch:"
@@ -42,10 +42,10 @@ fi
 
 # ── Remove vault block from CLAUDE.md ─────────────────────────────────────────
 
-if [ -f "$CLAUDE_MD" ] && grep -q "<!-- claude-vault-start -->" "$CLAUDE_MD"; then
-  awk '
-    /<!-- claude-vault-start -->/{skip=1; next}
-    /<!-- claude-vault-end -->/{skip=0; next}
+if [ -f "$CLAUDE_MD" ] && grep -q "$VAULT_CLAUDE_START" "$CLAUDE_MD"; then
+  awk -v start="$VAULT_CLAUDE_START" -v end="$VAULT_CLAUDE_END" '
+    $0 == start {skip=1; next}
+    $0 == end   {skip=0; next}
     !skip{print}
   ' "$CLAUDE_MD" > "$CLAUDE_MD.tmp"
   mv "$CLAUDE_MD.tmp" "$CLAUDE_MD"
@@ -56,7 +56,7 @@ fi
 
 # ── Remove skills ─────────────────────────────────────────────────────────────
 
-for skill in vault-edit setup; do
+for skill in vault-edit setup load-memory save-memory note update; do
   skill_path="$HOME/.claude/skills/$skill"
   if [ -d "$skill_path" ]; then
     rm -rf "$skill_path"

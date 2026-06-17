@@ -22,77 +22,115 @@ if [ -f "$HOME/.claude/.vault-install" ] || [ -d "$HOME/.claude/vault" ]; then
   _is_reinstall=true
 fi
 
+_use_existing=false
+PROJECT_PATH=""
+
 if $_is_reinstall; then
-  echo "An existing install was found."
+  _config="$HOME/.claude/.vault-install"
+  _stored_name=""
+  _stored_project=""
+  _stored_scope="global"
+  if [ -f "$_config" ]; then
+    # shellcheck source=/dev/null
+    source "$_config"
+    _stored_name="${USER_NAME:-}"
+    _stored_project="${PROJECT_NAME:-}"
+    _stored_scope="${SCOPE:-global}"
+  fi
+
+  echo "Existing install found."
   echo ""
-  echo "  1) Update settings only"
-  echo "  2) Full reinstall (vault files preserved)"
+  [ -n "$_stored_name" ]    && echo "  Name:    $_stored_name"
+  [ -n "$_stored_project" ] && echo "  Project: $_stored_project"
+  echo "  Scope:   $_stored_scope"
+  echo ""
+  echo "  1) Use existing setup   — update skills, no questions"
+  echo "  2) Change setup         — answer questions again"
   echo ""
   read -p "Enter 1 or 2: " REINSTALL_CHOICE
   echo ""
+
   if [ "$REINSTALL_CHOICE" = "1" ]; then
-    exec "$SCRIPT_DIR/configure.sh"
-    exit 0
+    _use_existing=true
+    IS_PROJECT_SCOPED=false
+    if [ "${SCOPE:-global}" = "project" ]; then IS_PROJECT_SCOPED=true; fi
+    SKILLS_DEST="$HOME/.claude/skills"
+    EXTRA_FILES_CHOICE=""
+    GIT_CHOICE="n"
   fi
 fi
 
 # ── Step 1: Name and project ──────────────────────────────────────────────────
 
-read -p "Your name (e.g. Alex Kim): " USER_NAME
-read -p "What are you working on? (e.g. mobile app redesign): " PROJECT_NAME
-echo ""
+if ! $_use_existing; then
+  read -p "Your name (e.g. Alex Kim): " USER_NAME
+  read -p "What are you working on? (e.g. mobile app redesign): " PROJECT_NAME
+  echo ""
+fi
 
 # ── Step 2: Where to install ──────────────────────────────────────────────────
 
-echo "Where should the vault live?"
-echo ""
-echo "  1) Global — works across all your projects (recommended)"
-echo "  2) Project only — inside a specific project folder"
-echo ""
-read -p "Enter 1 or 2: " INSTALL_SCOPE
-echo ""
+if ! $_use_existing; then
+  echo "Where should the vault live?"
+  echo ""
+  echo "  1) Global — works across all your projects (recommended)"
+  echo "  2) Project only — inside a specific project folder"
+  echo ""
+  read -p "Enter 1 or 2: " INSTALL_SCOPE
+  echo ""
 
-IS_PROJECT_SCOPED=false
+  IS_PROJECT_SCOPED=false
 
-if [ "$INSTALL_SCOPE" = "2" ]; then
-  read -p "Full path to your project folder: " PROJECT_PATH
-  if [ ! -d "$PROJECT_PATH" ]; then
-    echo "ERROR: Directory not found: $PROJECT_PATH"
-    exit 1
+  if [ "$INSTALL_SCOPE" = "2" ]; then
+    read -p "Full path to your project folder: " PROJECT_PATH
+    if [ ! -d "$PROJECT_PATH" ]; then
+      echo "ERROR: Directory not found: $PROJECT_PATH"
+      exit 1
+    fi
+    VAULT_PATH="$PROJECT_PATH/vault"
+    CLAUDE_MD="$PROJECT_PATH/CLAUDE.md"
+    IS_PROJECT_SCOPED=true
+    SCOPE="project"
+  else
+    VAULT_PATH="$HOME/.claude/vault"
+    CLAUDE_MD="$HOME/.claude/CLAUDE.md"
+    SCOPE="global"
   fi
-  VAULT_PATH="$PROJECT_PATH/vault"
-  CLAUDE_MD="$PROJECT_PATH/CLAUDE.md"
-  IS_PROJECT_SCOPED=true
-  SCOPE="project"
-else
-  VAULT_PATH="$HOME/.claude/vault"
-  CLAUDE_MD="$HOME/.claude/CLAUDE.md"
-  SCOPE="global"
-fi
 
-SKILLS_DEST="$HOME/.claude/skills"
+  SKILLS_DEST="$HOME/.claude/skills"
+fi
 
 # ── Step 3: Settings ──────────────────────────────────────────────────────────
 
-ask_settings  # no existing directives file on first install
+if ! $_use_existing; then
+  ask_settings  # no existing directives file on first install
+fi
 
 # ── Step 4: Extra vault files ─────────────────────────────────────────────────
 
-echo "Add optional starter files to your vault? (press Enter to skip)"
-echo ""
-echo "  1) team.md    — who's on the team, who decides what"
-echo "  2) goals.md   — what you're trying to achieve this period"
-echo "  3) stack.md   — tools, tech, conventions"
-echo ""
-read -p "Enter numbers separated by spaces, or press Enter to skip: " EXTRA_FILES_CHOICE
-echo ""
+if ! $_use_existing; then
+  echo "Add optional starter files to your vault? (press Enter to skip)"
+  echo ""
+  echo "  1) team.md    — who's on the team, who decides what"
+  echo "  2) goals.md   — what you're trying to achieve this period"
+  echo "  3) stack.md   — tools, tech, conventions"
+  echo ""
+  read -p "Enter numbers separated by spaces, or press Enter to skip: " EXTRA_FILES_CHOICE
+  echo ""
+fi
 
 # ── Step 5: Gitignore (project-scoped only) ───────────────────────────────────
 
-if [ "$IS_PROJECT_SCOPED" = true ]; then
-  read -p "Add vault/ to .gitignore? Keeps your notes private. (Y/n): " GIT_CHOICE
-  echo ""
+if ! $_use_existing; then
+  if [ "$IS_PROJECT_SCOPED" = true ]; then
+    read -p "Add vault/ to .gitignore? Keeps your notes private. (Y/n): " GIT_CHOICE
+    echo ""
+  fi
 fi
+
+# ── Step 5b: Persona setup (one-time, never repeats) ─────────────────────────
+
+ask_persona_setup
 
 echo "Installing..."
 echo ""
@@ -101,8 +139,16 @@ echo ""
 
 mkdir -p "$SKILLS_DEST/vault-edit"
 mkdir -p "$SKILLS_DEST/setup"
-cp "$SCRIPT_DIR/skills/vault-edit/SKILL.md" "$SKILLS_DEST/vault-edit/SKILL.md"
-cp "$SCRIPT_DIR/skills/setup/SKILL.md" "$SKILLS_DEST/setup/SKILL.md"
+mkdir -p "$SKILLS_DEST/load-memory"
+mkdir -p "$SKILLS_DEST/save-memory"
+mkdir -p "$SKILLS_DEST/note"
+mkdir -p "$SKILLS_DEST/update"
+cp "$SCRIPT_DIR/skills/vault-edit/SKILL.md"   "$SKILLS_DEST/vault-edit/SKILL.md"
+cp "$SCRIPT_DIR/skills/setup/SKILL.md"        "$SKILLS_DEST/setup/SKILL.md"
+cp "$SCRIPT_DIR/skills/load-memory/SKILL.md"  "$SKILLS_DEST/load-memory/SKILL.md"
+cp "$SCRIPT_DIR/skills/save-memory/SKILL.md"  "$SKILLS_DEST/save-memory/SKILL.md"
+cp "$SCRIPT_DIR/skills/note/SKILL.md"         "$SKILLS_DEST/note/SKILL.md"
+cp "$SCRIPT_DIR/skills/update/SKILL.md"       "$SKILLS_DEST/update/SKILL.md"
 echo "✓ Skills installed to $SKILLS_DEST"
 
 # ── Step 7: Create vault and files ────────────────────────────────────────────
@@ -123,6 +169,7 @@ fi
 if [ ! -f "$VAULT_PATH/directives.md" ]; then
   cp "$SCRIPT_DIR/templates/directives.md" "$VAULT_PATH/directives.md"
   write_settings_block "$VAULT_PATH/directives.md"
+  write_persona_block "$VAULT_PATH/directives.md"
   echo "✓ directives.md created"
 else
   echo "✓ directives.md already exists — skipped"
@@ -161,11 +208,12 @@ VAULT_BLOCK="<!-- claude-vault-start -->
 ## Vault
 Persistent context files loaded every session.
 
-- \`$VAULT_PATH/memory.md\` — current project state, recent decisions, lessons learned
+- \`$VAULT_PATH/memory.md\` — current project state, next tasks, recent decisions, lessons learned
 - \`$VAULT_PATH/directives.md\` — standing rules, always follow these
 
-Read both at the start of every session. Use /vault-edit to update them.
-To change your settings, run \`configure.sh\` or type /setup in Claude Code.
+Read both at the start of every session.
+
+Skills: /load-memory (reload context mid-session), /save-memory (checkpoint session to vault), /note (quick-capture a single decision), /vault-edit (manual edits), /setup (change settings), /update (check for and apply vault updates).
 <!-- claude-vault-end -->"
 
 mkdir -p "$(dirname "$CLAUDE_MD")"
@@ -189,7 +237,7 @@ fi
 
 # ── Step 10: Write install config ─────────────────────────────────────────────
 
-write_install_config "$VAULT_PATH" "$CLAUDE_MD" "$SCOPE" "$VAULT_VERSION"
+write_install_config "$VAULT_PATH" "$CLAUDE_MD" "$SCOPE" "$VAULT_VERSION" "$USER_NAME" "$PROJECT_NAME" "${PROJECT_PATH:-}" "$SCRIPT_DIR"
 echo "✓ Install config saved"
 
 # ── Step 11: Optional plugins ─────────────────────────────────────────────────
@@ -234,13 +282,18 @@ echo "────────────────────────�
 echo "  Commands in Claude Code"
 echo "────────────────────────────────"
 echo ""
-echo "  /vault-edit   Update your second brain after a session"
+echo "  /load-memory  Reload vault context mid-session"
+echo "  /save-memory  Checkpoint session to vault (bonfire lit)"
+echo "  /note         Quick-capture a single decision mid-session"
+echo "  /vault-edit   Update vault files manually"
 echo "  /setup        Review and change settings"
+echo "  /update       Check installed version and how to update"
 echo ""
 echo "────────────────────────────────"
 echo "  From the terminal"
 echo "────────────────────────────────"
 echo ""
+echo "  ./update.sh      Check for and apply updates"
 echo "  ./configure.sh   Update settings"
 echo "  ./uninstall.sh   Remove Claude Vault"
 echo ""

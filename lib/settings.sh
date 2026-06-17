@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Shared settings logic — sourced by install.sh and configure.sh
 
+# shellcheck source=lib/version.sh
+source "$(dirname "${BASH_SOURCE[0]}")/version.sh"
+
 # Read current settings from an existing directives.md.
 # Sets: CURRENT_ROLE_DIRECTIVE, CURRENT_LENGTH_DIRECTIVE, CURRENT_CONFIRM_DIRECTIVE
 # Returns with empty strings if file missing or no settings block found.
@@ -170,4 +173,111 @@ BLOCK_EOF
   fi
 
   rm -f "$block"
+}
+
+# One-time persona setup — ask for AI name and how to address the user.
+# Reads USER_NAME global (already collected by install.sh).
+# Sets globals: PERSONA_CHOICE ("skip"|"ai-choose"|"named"), AI_NAME, USER_PERSONA_WANTS_NAME.
+# Skips silently if ~/.claude/.vault-persona already exists (never repeats).
+ask_persona_setup() {
+  local persona_config="$HOME/.claude/.vault-persona"
+  PERSONA_CHOICE=""
+  AI_NAME=""
+  USER_PERSONA_WANTS_NAME=false
+
+  if [ -f "$persona_config" ]; then
+    return  # already done once — never ask again
+  fi
+
+  echo ""
+  echo "────────────────────────────────"
+  echo "  One-time: AI persona setup"
+  echo "────────────────────────────────"
+  echo ""
+  echo "Would you like to give your AI assistant a name?"
+  echo ""
+  echo "  Type a name  → e.g. Aria, Max, Atlas"
+  echo "  Press Enter  → let the AI choose its own name"
+  echo "  Type 'skip'  → no name, skip this forever"
+  echo ""
+  read -p "Your choice: " _ai_name_raw
+  echo ""
+
+  case "$_ai_name_raw" in
+    skip|SKIP)
+      PERSONA_CHOICE="skip"
+      ;;
+    "")
+      PERSONA_CHOICE="ai-choose"
+      AI_NAME="choose"
+      ;;
+    *)
+      PERSONA_CHOICE="named"
+      AI_NAME="$_ai_name_raw"
+      ;;
+  esac
+
+  if [ "$PERSONA_CHOICE" = "named" ] && [ -n "${USER_NAME:-}" ]; then
+    echo "Should the AI address you as \"$USER_NAME\"?"
+    read -p "Press Enter to confirm, type a nickname, or type 'skip': " _user_name_pref
+    echo ""
+    case "$_user_name_pref" in
+      skip|SKIP) ;;
+      "")
+        USER_PERSONA_WANTS_NAME=true
+        ;;
+      *)
+        USER_PERSONA_WANTS_NAME=true
+        USER_NAME="$_user_name_pref"
+        ;;
+    esac
+  fi
+
+  # Write persona config — marks this as done forever
+  mkdir -p "$(dirname "$persona_config")"
+  {
+    echo "PERSONA_SETUP=$PERSONA_CHOICE"
+    if [ -n "$AI_NAME" ]; then echo "AI_NAME=$AI_NAME"; fi
+    if [ "$USER_PERSONA_WANTS_NAME" = "true" ]; then echo "USER_PERSONA_NAME=$USER_NAME"; fi
+  } > "$persona_config"
+}
+
+# Write the persona identity block to directives.md.
+# Reads globals: PERSONA_CHOICE, AI_NAME, USER_NAME, USER_PERSONA_WANTS_NAME.
+# No-ops if PERSONA_CHOICE is empty (setup was already done in a prior install).
+write_persona_block() {
+  local directives_file="$1"
+  [ -f "$directives_file" ] || return 0
+  [ -n "$PERSONA_CHOICE" ] || return 0
+
+  case "$PERSONA_CHOICE" in
+    skip) return ;;
+
+    ai-choose)
+      {
+        echo ""
+        echo "$VAULT_PERSONA_START"
+        echo "## Identity"
+        echo "You have not been given a name yet. At the very start of your next session with this vault:"
+        echo "1. Introduce yourself briefly."
+        echo "2. Suggest a creative name for yourself that fits the project context."
+        echo "3. Update this block in directives.md — replace everything between the vault-persona markers with:"
+        echo "   \`## Identity\`"
+        echo "   \`Your name is [the name you chose].\`"
+        echo "$VAULT_PERSONA_END"
+      } >> "$directives_file"
+      ;;
+
+    named)
+      local user_line=""
+      [ "$USER_PERSONA_WANTS_NAME" = "true" ] && user_line=" Address the user as $USER_NAME."
+      {
+        echo ""
+        echo "$VAULT_PERSONA_START"
+        echo "## Identity"
+        echo "Your name is $AI_NAME.$user_line"
+        echo "$VAULT_PERSONA_END"
+      } >> "$directives_file"
+      ;;
+  esac
 }

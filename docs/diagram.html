@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Vault — Architecture Diagram</title>
+<script src="https://unpkg.com/@viz-js/viz@3.4.0/lib/viz-standalone.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0d0d0d;
+    color: #e8e8e8;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  header p {
+    font-size: 13px;
+    color: #666;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 32px;
+    background: #1a1a1a;
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid #2a2a2a;
+  }
+
+  .tab {
+    padding: 8px 20px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: #666;
+    transition: all 0.15s;
+    letter-spacing: 0.3px;
+  }
+
+  .tab:hover { color: #aaa; }
+  .tab.active { background: #2d2d2d; color: #fff; }
+
+  .panel { display: none; width: 100%; max-width: 1400px; }
+  .panel.active { display: block; }
+
+  .graph-wrap {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 14px;
+    padding: 32px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+  }
+
+  .graph-wrap svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 20px;
+    padding: 16px 20px;
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #888;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  #error {
+    color: #ff5555;
+    padding: 20px;
+    font-size: 13px;
+    display: none;
+  }
+
+  .loading {
+    color: #555;
+    padding: 60px;
+    font-size: 13px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Claude Vault</h1>
+  <p>Architecture · File Map · Runtime Flow</p>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('overview')">Overview</button>
+  <button class="tab" onclick="switchTab('install')">Install Flow</button>
+  <button class="tab" onclick="switchTab('runtime')">Runtime Flow</button>
+  <button class="tab" onclick="switchTab('files')">File Ownership</button>
+</div>
+
+<div id="error"></div>
+
+<div id="panel-overview" class="panel active">
+  <div class="graph-wrap" id="graph-overview"><div class="loading">Rendering…</div></div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#1e3a5f"></div> Repo source (ships in git)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1a3d2b"></div> Skills (slash commands)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3d2b1a"></div> Vault data (user-owned)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#2d1a3d"></div> Config / flags</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3d1a1a"></div> Claude reads automatically</div>
+  </div>
+</div>
+
+<div id="panel-install" class="panel">
+  <div class="graph-wrap" id="graph-install"><div class="loading">Rendering…</div></div>
+</div>
+
+<div id="panel-runtime" class="panel">
+  <div class="graph-wrap" id="graph-runtime"><div class="loading">Rendering…</div></div>
+</div>
+
+<div id="panel-files" class="panel">
+  <div class="graph-wrap" id="graph-files"><div class="loading">Rendering…</div></div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#1e5f3a"></div> Written every install</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5f4a1e"></div> Written once, never again</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5f1e1e"></div> Never overwritten (user data)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1e3a5f"></div> Marker-bounded (surgical update)</div>
+  </div>
+</div>
+
+<script>
+const DOT = {
+
+overview: `
+digraph overview {
+  graph [
+    bgcolor="#111111"
+    fontname="SF Mono, Fira Code, monospace"
+    fontcolor="#888888"
+    pad="0.6"
+    splines=ortho
+    rankdir=LR
+    nodesep=0.7
+    ranksep=1.2
+  ]
+  node [
+    fontname="SF Mono, Fira Code, monospace"
+    fontsize=11
+    style=filled
+    color="#333333"
+    fontcolor="#e8e8e8"
+    shape=rect
+    margin="0.2,0.12"
+    penwidth=1.5
+  ]
+  edge [
+    color="#444444"
+    fontcolor="#888888"
+    fontname="SF Mono, Fira Code, monospace"
+    fontsize=10
+    penwidth=1.5
+    arrowsize=0.7
+  ]
+
+  subgraph cluster_repo {
+    label="📁  Repo  (git)"
+    style=filled
+    fillcolor="#141a22"
+    color="#1e3a5f"
+    penwidth=2
+    fontcolor="#4a90d9"
+    fontsize=13
+    margin=20
+
+    subgraph cluster_scripts {
+      label="Scripts"
+      style=filled fillcolor="#0d1520" color="#1e3a5f" penwidth=1
+      fontcolor="#4a90d9" fontsize=11 margin=12
+
+      install   [label="install.sh\n──────────\norchestrator", fillcolor="#1e3a5f"]
+      configure [label="configure.sh\n──────────\nre-run settings", fillcolor="#162840"]
+      uninstall [label="uninstall.sh\n──────────\nclean removal", fillcolor="#162840"]
+    }
+
+    subgraph cluster_lib {
+      label="lib/"
+      style=filled fillcolor="#0d1520" color="#1e3a5f" penwidth=1
+      fontcolor="#4a90d9" fontsize=11 margin=12
+
+      version  [label="version.sh\n──────────\nVAULT_VERSION\nmarker strings", fillcolor="#162840"]
+      vaultlib [label="vault.sh\n──────────\nwrite_install_config\ndetect_vault", fillcolor="#162840"]
+      settings [label="settings.sh\n──────────\nask_settings\nwrite_settings_block\nask_persona_setup\nwrite_persona_block", fillcolor="#162840"]
+      plugins  [label="plugins.sh\n──────────\nlist / install plugins", fillcolor="#162840"]
+    }
+
+    subgraph cluster_skills_src {
+      label="skills/  (source)"
+      style=filled fillcolor="#0d2018" color="#1a3d2b" penwidth=1
+      fontcolor="#4ad9a0" fontsize=11 margin=12
+
+      sk_load  [label="load-memory/\nSKILL.md", fillcolor="#1a3d2b"]
+      sk_save  [label="save-memory/\nSKILL.md", fillcolor="#1a3d2b"]
+      sk_note  [label="note/\nSKILL.md",        fillcolor="#1a3d2b"]
+      sk_edit  [label="vault-edit/\nSKILL.md",  fillcolor="#1a3d2b"]
+      sk_setup [label="setup/\nSKILL.md",       fillcolor="#1a3d2b"]
+    }
+
+    subgraph cluster_templates {
+      label="templates/"
+      style=filled fillcolor="#1f1508" color="#3d2b1a" penwidth=1
+      fontcolor="#d9a04a" fontsize=11 margin=12
+
+      t_mem  [label="memory.md",    fillcolor="#3d2b1a"]
+      t_dir  [label="directives.md",fillcolor="#3d2b1a"]
+      t_team [label="team.md",      fillcolor="#2d1f0d"]
+      t_goal [label="goals.md",     fillcolor="#2d1f0d"]
+      t_stk  [label="stack.md",     fillcolor="#2d1f0d"]
+    }
+
+    tests [label="test/run.sh\n──────────\n35 assertions", fillcolor="#1a1a2e", color="#4444aa"]
+  }
+
+  subgraph cluster_disk {
+    label="💾  Installed on disk"
+    style=filled
+    fillcolor="#141414"
+    color="#444444"
+    penwidth=2
+    fontcolor="#888888"
+    fontsize=13
+    margin=20
+
+    subgraph cluster_skills_dst {
+      label="~/.claude/skills/"
+      style=filled fillcolor="#0d1a10" color="#1a3d2b" penwidth=1
+      fontcolor="#4ad9a0" fontsize=11 margin=12
+
+      ds_load  [label="load-memory/\nSKILL.md  🧠", fillcolor="#1a3d2b"]
+      ds_save  [label="save-memory/\nSKILL.md  🔥", fillcolor="#1a3d2b"]
+      ds_note  [label="note/\nSKILL.md  📌",        fillcolor="#1a3d2b"]
+      ds_edit  [label="vault-edit/\nSKILL.md",       fillcolor="#1a3d2b"]
+      ds_setup [label="setup/\nSKILL.md",            fillcolor="#1a3d2b"]
+    }
+
+    subgraph cluster_vault {
+      label="~/.claude/vault/  (or project/vault/)"
+      style=filled fillcolor="#1a1008" color="#3d2b1a" penwidth=1
+      fontcolor="#d9a04a" fontsize=11 margin=12
+
+      v_mem  [label="memory.md\n──────────\nfocus · next up\ndecisions · lessons\nopen questions", fillcolor="#3d2b1a"]
+      v_dir  [label="directives.md\n──────────\nrules · style\nstewardship triggers\n+ settings block\n+ persona block", fillcolor="#3d2b1a"]
+      v_opt  [label="stack.md\nteam.md\ngoals.md\n(optional)", fillcolor="#2d1f0d"]
+    }
+
+    subgraph cluster_config {
+      label="~/.claude/"
+      style=filled fillcolor="#140d1a" color="#2d1a3d" penwidth=1
+      fontcolor="#a04ad9" fontsize=11 margin=12
+
+      claudemd  [label="CLAUDE.md\n──────────\nauto-read every session\npoints to vault", fillcolor="#3d1a1a", color="#aa3333"]
+      vinstall  [label=".vault-install\n──────────\nVAULT_PATH\nCLAUDE_MD\nSCOPE · VERSION", fillcolor="#2d1a3d"]
+      vpersona  [label=".vault-persona\n──────────\nAI name · user name\nwritten ONCE forever", fillcolor="#3d2a0d", color="#aa7700"]
+    }
+  }
+
+  install   -> version  [style=dashed, label="source"]
+  install   -> vaultlib [style=dashed]
+  install   -> settings [style=dashed]
+  install   -> plugins  [style=dashed]
+  configure -> settings [style=dashed]
+  configure -> vaultlib [style=dashed]
+
+  sk_load  -> ds_load  [label="cp", color="#2a6640"]
+  sk_save  -> ds_save  [label="cp", color="#2a6640"]
+  sk_note  -> ds_note  [label="cp", color="#2a6640"]
+  sk_edit  -> ds_edit  [label="cp", color="#2a6640"]
+  sk_setup -> ds_setup [label="cp", color="#2a6640"]
+
+  t_mem  -> v_mem [label="cp once", color="#664422"]
+  t_dir  -> v_dir [label="cp once", color="#664422"]
+  t_team -> v_opt [label="cp once\n(optional)", color="#664422"]
+  t_goal -> v_opt [color="#664422"]
+  t_stk  -> v_opt [color="#664422"]
+
+  install -> claudemd [label="write block", color="#aa3333"]
+  install -> vinstall [label="write", color="#6633aa"]
+  settings -> vpersona [label="write once", color="#aa7700"]
+
+  claudemd -> v_mem [label="reads every\nsession", color="#aa3333", style=bold]
+  claudemd -> v_dir [label="reads every\nsession", color="#aa3333", style=bold]
+
+  tests -> settings [style=dashed, color="#4444aa", label="tests"]
+  tests -> vaultlib [style=dashed, color="#4444aa"]
+  tests -> plugins  [style=dashed, color="#4444aa"]
+}
+`,
+
+install: `
+digraph install {
+  graph [
+    bgcolor="#111111"
+    fontname="SF Mono, Fira Code, monospace"
+    fontcolor="#888888"
+    pad="0.8"
+    splines=ortho
+    rankdir=TB
+    nodesep=0.6
+    ranksep=0.8
+  ]
+  node [
+    fontname="SF Mono, Fira Code, monospace"
+    fontsize=11
+    style=filled
+    color="#333333"
+    fontcolor="#e8e8e8"
+    shape=rect
+    margin="0.2,0.12"
+    penwidth=1.5
+  ]
+  edge [
+    color="#555555"
+    fontcolor="#888888"
+    fontname="SF Mono, Fira Code, monospace"
+    fontsize=10
+    penwidth=1.5
+    arrowsize=0.7
+  ]
+
+  start [label="bash install.sh", shape=ellipse, fillcolor="#1a1a1a", color="#888888"]
+
+  re [label="~/.vault-install\nor ~/.claude/vault\nexists?", shape=diamond, fillcolor="#1a2a1a", color="#4a8a4a"]
+  opt1 [label="Option 1:\nUpdate settings only", fillcolor="#1a2a1a"]
+  opt2 [label="Option 2:\nFull reinstall\n(vault files preserved)", fillcolor="#1a2a1a"]
+  configure [label="exec configure.sh", fillcolor="#162840", color="#4a90d9"]
+
+  q1 [label="Q: Your name?", fillcolor="#1a1a2e", color="#6666cc"]
+  q2 [label="Q: Project name?", fillcolor="#1a1a2e", color="#6666cc"]
+  q3 [label="Q: Scope?\nglobal (~/.claude/vault)\nor project (/path/vault)", fillcolor="#1a1a2e", color="#6666cc"]
+  q4 [label="Q: Role / style /\nconfirmation\n(ask_settings)", fillcolor="#1a1a2e", color="#6666cc"]
+  q5 [label="Q: Optional files?\nteam / goals / stack", fillcolor="#1a1a2e", color="#6666cc"]
+  q6 [label="Q: Add vault/\nto .gitignore?\n(project scope only)", fillcolor="#1a1a2e", color="#6666cc"]
+
+  persona [label="~/.vault-persona\nexists?", shape=diamond, fillcolor="#1a1a1a", color="#aa7700"]
+  persona_q [label="ONE-TIME:\nGive AI a name?\n[name / Enter=AI chooses / skip]", fillcolor="#2d1a00", color="#aa7700"]
+  persona_user [label="Address you\nas [name]?", fillcolor="#2d1a00", color="#aa7700"]
+  persona_write [label="write ~/.vault-persona\n(mark done forever)", fillcolor="#2d1a00", color="#aa7700"]
+  persona_skip [label="skip silently", fillcolor="#1a1a1a", color="#555555"]
+
+  installing [label="Installing…", shape=ellipse, fillcolor="#1a1a1a", color="#888888"]
+
+  s6 [label="Step 6: Install skills\ncp SKILL.md × 5\n→ ~/.claude/skills/", fillcolor="#1a3d2b", color="#4ad9a0"]
+  s7a [label="Step 7a: mkdir vault/", fillcolor="#3d2b1a", color="#d9a04a"]
+  s7b [label="memory.md exists?", shape=diamond, fillcolor="#2a1a0a", color="#d9a04a"]
+  s7c [label="sed template →\nmemory.md\n({{NAME}} {{PROJECT}} {{DATE}})", fillcolor="#3d2b1a", color="#d9a04a"]
+  s7d [label="directives.md exists?", shape=diamond, fillcolor="#2a1a0a", color="#d9a04a"]
+  s7e [label="cp template +\nwrite_settings_block +\nwrite_persona_block\n→ directives.md", fillcolor="#3d2b1a", color="#d9a04a"]
+  s7f [label="optional files\n(team/goals/stack)\nif selected + not exist", fillcolor="#2d1f0d", color="#d9a04a"]
+  s8  [label="Step 8: .gitignore\n(project scope only)", fillcolor="#1a1a1a"]
+  s9  [label="Step 9: Write CLAUDE.md\nvault block (marker-bounded)\nlist of vault files + skills", fillcolor="#3d1a1a", color="#aa3333"]
+  s10 [label="Step 10: write_install_config\n→ ~/.vault-install\n(VAULT_PATH CLAUDE_MD SCOPE VERSION)", fillcolor="#2d1a3d", color="#9966cc"]
+  s11 [label="Step 11: Optional plugins\n(list → prompt → install)", fillcolor="#1a1a2e"]
+
+  done [label="Done ✓\nprint skill list", shape=ellipse, fillcolor="#1a2a1a", color="#4a8a4a"]
+
+  start -> re
+  re -> opt1 [label="yes"]
+  re -> q1   [label="no (fresh)"]
+  opt1 -> configure
+  opt2 -> q1
+  re -> opt2 [label="yes → choose 2"]
+
+  q1 -> q2 -> q3 -> q4 -> q5 -> q6 -> persona
+
+  persona -> persona_skip  [label="yes → skip"]
+  persona -> persona_q     [label="no → ask"]
+  persona_q -> persona_user [label="gave name"]
+  persona_q -> persona_write [label="Enter (AI chooses)\nor skip"]
+  persona_user -> persona_write
+  persona_skip -> installing
+  persona_write -> installing
+
+  installing -> s6 -> s7a -> s7b
+  s7b -> s7c [label="no"]
+  s7b -> s7d [label="yes → skip"]
+  s7c -> s7d
+  s7d -> s7e [label="no"]
+  s7d -> s7f [label="yes → skip"]
+  s7e -> s7f -> s8 -> s9 -> s10 -> s11 -> done
+
+  skipped1 [label="skip", shape=plain, fontcolor="#555555"]
+  skipped2 [label="skip", shape=plain, fontcolor="#555555"]
+  s7b -> skipped1 [style=dashed, color="#444444"]
+  s7d -> skipped2 [style=dashed, color="#444444"]
+}
+`,
+
+runtime: `
+digraph runtime {
+  graph [
+    bgcolor="#111111"
+    fontname="SF Mono, Fira Code, monospace"
+    fontcolor="#888888"
+    pad="0.8"
+    splines=ortho
+    rankdir=TB
+    nodesep=0.8
+    ranksep=0.9
+  ]
+  node [
+    fontname="SF Mono, Fira Code, monospace"
+    fontsize=11
+    style=filled
+    color="#333333"
+    fontcolor="#e8e8e8"
+    shape=rect
+    margin="0.22,0.14"
+    penwidth=1.5
+  ]
+  edge [
+    color="#555555"
+    fontcolor="#888888"
+    fontname="SF Mono, Fira Code, monospace"
+    fontsize=10
+    penwidth=1.5
+    arrowsize=0.7
+  ]
+
+  session [label="Session opens\nClaude Code", shape=ellipse, fillcolor="#1a1a1a", color="#888888"]
+
+  autoread [label="CLAUDE.md\nauto-read", fillcolor="#3d1a1a", color="#cc3333"]
+  vaultblock [label="vault block:\n• path to memory.md\n• path to directives.md\n• skill list", fillcolor="#2d1010", color="#cc3333"]
+
+  memory   [label="memory.md\n────────────────\nfocus · next up\ndecisions · lessons\nopen questions", fillcolor="#3d2b1a", color="#d9a04a"]
+  directives [label="directives.md\n────────────────\nrules · style prefs\nstewardship triggers\n← settings block\n← persona block", fillcolor="#3d2b1a", color="#d9a04a"]
+
+  active [label="Claude is now active\nwith full context", shape=ellipse, fillcolor="#1a2a1a", color="#4a8a4a"]
+
+  subgraph cluster_session {
+    label="During the session"
+    style=filled fillcolor="#141414" color="#333333" penwidth=1.5
+    fontcolor="#888888" fontsize=12 margin=20
+
+    user_talks [label="User message", fillcolor="#1a1a2e", color="#6666cc"]
+
+    subgraph cluster_triggers {
+      label="Stewardship triggers  (from directives.md)"
+      style=filled fillcolor="#1a1208" color="#aa7700" penwidth=1 fontcolor="#aa7700" fontsize=11 margin=12
+
+      t1 [label="'let's go with'\n'we decided'\n'from now on'\n'actually let's'", fillcolor="#2d1f08", color="#aa7700"]
+      t2 [label="Natural stop:\nfeature done\nphase complete", fillcolor="#2d1f08", color="#aa7700"]
+      t3 [label="Stale data spotted\nin memory.md", fillcolor="#2d1f08", color="#aa7700"]
+    }
+
+    flag_note [label="📌 /note [summary]\nappended to response", fillcolor="#1a2d1a", color="#4ad9a0"]
+    flag_save [label="🔥 /save-memory\nsuggested", fillcolor="#2d1a0d", color="#d9a04a"]
+    flag_stale [label="'[X] looks stale —\nstill accurate?'", fillcolor="#1a1a2e", color="#6666cc"]
+
+    user_talks -> t1
+    user_talks -> t2
+    user_talks -> t3
+
+    t1 -> flag_note
+    t2 -> flag_save
+    t3 -> flag_stale
+  }
+
+  subgraph cluster_commands {
+    label="Slash commands"
+    style=filled fillcolor="#141414" color="#333333" penwidth=1.5
+    fontcolor="#888888" fontsize=12 margin=20
+
+    cmd_load [label="/load-memory", fillcolor="#1a3d2b", color="#4ad9a0"]
+    cmd_save [label="/save-memory", fillcolor="#1a3d2b", color="#4ad9a0"]
+    cmd_note [label="/note [text]",  fillcolor="#1a3d2b", color="#4ad9a0"]
+    cmd_edit [label="/vault-edit",   fillcolor="#1a3d2b", color="#4ad9a0"]
+    cmd_setup[label="/setup",        fillcolor="#1a3d2b", color="#4ad9a0"]
+
+    r_load [label="🧠 I know kung fu.\nSummary of loaded context", fillcolor="#0d2018", color="#4ad9a0"]
+    r_save [label="🔥 Bonfire lit.\nDistilled memory.md rewrite\n+ propose directives changes", fillcolor="#0d2018", color="#4ad9a0"]
+    r_note [label="📌 Noted.\nOne line appended to\nappropriate section", fillcolor="#0d2018", color="#4ad9a0"]
+    r_edit [label="Show before/after\nfor manual edits", fillcolor="#0d2018", color="#4ad9a0"]
+    r_setup[label="Re-run settings Q&A\nUpdate directives block", fillcolor="#0d2018", color="#4ad9a0"]
+
+    cmd_load -> r_load
+    cmd_save -> r_save
+    cmd_note -> r_note
+    cmd_edit -> r_edit
+    cmd_setup -> r_setup
+  }
+
+  session -> autoread -> vaultblock
+  vaultblock -> memory [label="reads"]
+  vaultblock -> directives [label="reads"]
+  memory -> active
+  directives -> active
+  active -> user_talks
+
+  r_load -> memory    [label="re-reads", color="#4ad9a0", style=dashed]
+  r_load -> directives [color="#4ad9a0", style=dashed]
+  r_save -> memory    [label="rewrites", color="#d9a04a", style=bold]
+  r_note -> memory    [label="appends 1 line", color="#4ad9a0"]
+  r_edit -> memory    [label="manual edit", color="#d9a04a"]
+  r_edit -> directives [label="manual edit", color="#d9a04a"]
+  r_setup -> directives [label="updates settings block", color="#d9a04a"]
+
+  flag_note -> cmd_note [label="user runs it", style=dashed, color="#666666"]
+  flag_save -> cmd_save [label="user runs it", style=dashed, color="#666666"]
+}
+`,
+
+files: `
+digraph files {
+  graph [
+    bgcolor="#111111"
+    fontname="SF Mono, Fira Code, monospace"
+    fontcolor="#888888"
+    pad="0.8"
+    splines=ortho
+    rankdir=LR
+    nodesep=0.6
+    ranksep=1.1
+  ]
+  node [
+    fontname="SF Mono, Fira Code, monospace"
+    fontsize=11
+    style=filled
+    color="#333333"
+    fontcolor="#e8e8e8"
+    shape=rect
+    margin="0.2,0.12"
+    penwidth=1.5
+  ]
+  edge [
+    color="#555555"
+    fontcolor="#888888"
+    fontname="SF Mono, Fira Code, monospace"
+    fontsize=10
+    penwidth=1.5
+    arrowsize=0.7
+  ]
+
+  subgraph cluster_writers {
+    label="Writers"
+    style=filled fillcolor="#141414" color="#333333" penwidth=1.5
+    fontcolor="#888888" fontsize=12 margin=16
+
+    install   [label="install.sh", fillcolor="#1e3a5f", color="#4a90d9"]
+    configure [label="configure.sh", fillcolor="#162840", color="#4a90d9"]
+    uninstall [label="uninstall.sh", fillcolor="#162840", color="#4a90d9"]
+    settings_fn [label="settings.sh\n(functions)", fillcolor="#162840", color="#4a90d9"]
+    vault_fn    [label="vault.sh\n(functions)", fillcolor="#162840", color="#4a90d9"]
+    sk_save  [label="/save-memory", fillcolor="#1a3d2b", color="#4ad9a0"]
+    sk_note  [label="/note", fillcolor="#1a3d2b", color="#4ad9a0"]
+    sk_edit  [label="/vault-edit", fillcolor="#1a3d2b", color="#4ad9a0"]
+    sk_setup2 [label="/setup", fillcolor="#1a3d2b", color="#4ad9a0"]
+    sk_load2 [label="/load-memory", fillcolor="#1a3d2b", color="#4ad9a0"]
+    user_hand [label="User\n(hand edits)", fillcolor="#1a1a2e", color="#6666cc"]
+  }
+
+  subgraph cluster_files {
+    label="Files on disk"
+    style=filled fillcolor="#141414" color="#444444" penwidth=1.5
+    fontcolor="#888888" fontsize=12 margin=16
+
+    f_mem    [label="vault/memory.md\n─────────────────────\nfocus · next up · decisions\nlessons · open questions\n\nNever overwritten on reinstall", fillcolor="#3d2b1a", color="#d9a04a"]
+    f_dir    [label="vault/directives.md\n─────────────────────\nfull file: user-owned\n── vault-settings block ──  ← auto-managed\n── vault-persona block ──   ← written once\n\nNever overwritten on reinstall", fillcolor="#3d2b1a", color="#d9a04a"]
+    f_opt    [label="vault/stack.md\nvault/team.md\nvault/goals.md\n─────────────────────\noptional · user-owned\nNever overwritten", fillcolor="#2d1f0d", color="#d9a04a"]
+    f_claude [label="~/.claude/CLAUDE.md\n─────────────────────\nmarker-bounded block only\n<!-- claude-vault-start/end -->\nrest preserved", fillcolor="#3d1a1a", color="#cc3333"]
+    f_install[label="~/.claude/.vault-install\n─────────────────────\nVAULT_PATH · CLAUDE_MD\nSCOPE · VERSION\nINSTALL_DATE\n\nOverwritten each install", fillcolor="#1e3a5f", color="#4a90d9"]
+    f_persona[label="~/.claude/.vault-persona\n─────────────────────\nPERSONA_SETUP\nAI_NAME · USER_PERSONA_NAME\n\nWritten ONCE · never touched again", fillcolor="#3d2a0d", color="#aa7700"]
+    f_skills [label="~/.claude/skills/\n─────────────────────\n5 × SKILL.md\n\nOverwritten each install\n(logic files, not data)", fillcolor="#1a3d2b", color="#4ad9a0"]
+  }
+
+  install   -> f_mem    [label="sed template\n(first install only)", color="#664422", style=dashed]
+  install   -> f_dir    [label="cp + blocks\n(first install only)", color="#664422", style=dashed]
+  install   -> f_opt    [label="cp if selected\n(first install only)", color="#664422", style=dashed]
+  install   -> f_claude [label="write marker block\n(idempotent)", color="#cc3333"]
+  install   -> f_install[label="overwrite\neach install", color="#4a90d9"]
+  install   -> f_skills [label="cp all skills\neach install", color="#4ad9a0"]
+
+  settings_fn -> f_dir [label="write_settings_block\n(marker-bounded)", color="#4a90d9"]
+  settings_fn -> f_persona [label="write_persona_block\n(first install only)", color="#aa7700"]
+  vault_fn    -> f_install [label="write_install_config", color="#4a90d9"]
+
+  configure -> settings_fn [style=dashed]
+  uninstall -> f_claude   [label="remove marker block", color="#cc3333", style=dashed]
+  uninstall -> f_skills   [label="remove skills", color="#4ad9a0", style=dashed]
+
+  sk_save  -> f_mem [label="full rewrite\n(distilled)", color="#d9a04a", penwidth=2.5]
+  sk_save  -> f_dir [label="propose only\n→ user confirms", color="#d9a04a", style=dashed]
+  sk_note  -> f_mem [label="append 1 line\nto right section", color="#4ad9a0"]
+  sk_edit  -> f_mem [label="manual\nbefore/after", color="#666666"]
+  sk_edit  -> f_dir [label="manual\nbefore/after", color="#666666"]
+  sk_edit  -> f_opt [label="manual", color="#666666"]
+  sk_setup2 -> settings_fn [style=dashed]
+  sk_load2 -> f_mem [label="reads only", color="#4ad9a0", style=dashed, arrowhead=open]
+  sk_load2 -> f_dir [label="reads only", color="#4ad9a0", style=dashed, arrowhead=open]
+
+  user_hand -> f_mem [color="#6666cc", style=dashed]
+  user_hand -> f_dir [color="#6666cc", style=dashed]
+  user_hand -> f_opt [color="#6666cc", style=dashed]
+}
+`
+
+};
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById(`panel-${name}`).classList.add('active');
+}
+
+async function render() {
+  const viz = await Viz.instance();
+
+  for (const [name, dot] of Object.entries(DOT)) {
+    const container = document.getElementById(`graph-${name}`);
+    try {
+      const svg = viz.renderSVGElement(dot);
+      svg.style.minWidth = '800px';
+      container.innerHTML = '';
+      container.appendChild(svg);
+    } catch (e) {
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('error').textContent = `Error rendering ${name}: ${e.message}`;
+      console.error(e);
+    }
+  }
+}
+
+render();
+</script>
+</body>
+</html>

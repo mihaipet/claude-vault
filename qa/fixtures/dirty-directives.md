@@ -3,6 +3,19 @@ Standing rules Claude follows in every session. Add to this whenever you find yo
 
 ---
 
+<!-- vault-settings-start -->
+## About me
+I am a developer. Be technically precise. Prefer code over descriptions where relevant.
+
+## Communication
+- Be concise. Short answers. No padding, no unsolicited explanations.
+- Confirm before implementing. Propose first, wait for my approval.
+- Ask one clarifying question at a time, not a list
+- If something is unclear, say so. Do not assume and proceed.
+<!-- vault-settings-end -->
+
+---
+
 ## How I like to work
 - Confirm before implementing — propose first, wait for my approval
 - Ask one clarifying question at a time, not a list
@@ -15,12 +28,10 @@ Standing rules Claude follows in every session. Add to this whenever you find yo
 - If you're unsure which approach to take, give me two options max — not five
 
 ## Project conventions
-<!-- Add your project-specific rules here -->
-<!-- Examples:
-- Always use TypeScript
-- Tailwind only, no custom CSS
-- Every component needs a test
--->
+- Always use TypeScript strict mode — no implicit any
+- Zod for all runtime validation, never trust external input
+- Write the test first when adding a new endpoint — TDD on the API layer
+- Prefer named exports over default exports
 
 ## Memory stewardship
 - Decision triggers: when the user says "let's go with", "we decided", "from now on", "actually let's", or confirms a direction after options were presented — append a 📌 line at the end of your response with a ready-to-run capture command: `📌 /note [one-line summary of the decision]`
