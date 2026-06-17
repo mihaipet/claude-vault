@@ -25,9 +25,14 @@ fresh_install_stdin() {
   printf 'Test User\nTest Project\n1\n2\n1\n1\n\nskip\n'
 }
 
-# stdin for a full reinstall (option 2), then same 8 lines but NO persona question
-# (because .vault-persona already exists from the first install)
+# stdin for reinstall using existing settings (option 1) — one keystroke, no questions
 reinstall_stdin() {
+  printf '1\n'
+}
+
+# stdin for reinstall with full redo (option 2) — answers everything fresh, no persona question
+# (because .vault-persona already exists from the first install)
+reinstall_redo_stdin() {
   printf '2\nTest User 2\nTest Project 2\n1\n2\n1\n1\n\n'
 }
 
@@ -177,8 +182,8 @@ echo "TC-INT-008: Settings block updated on reinstall, not duplicated"
 INT008_HOME="$(mktemp -d)"
 export HOME="$INT008_HOME"
 
-fresh_install_stdin | bash "$REPO/install.sh" >/dev/null 2>&1 || true
-reinstall_stdin     | bash "$REPO/install.sh" >/dev/null 2>&1 || true
+fresh_install_stdin    | bash "$REPO/install.sh" >/dev/null 2>&1 || true
+reinstall_redo_stdin   | bash "$REPO/install.sh" >/dev/null 2>&1 || true
 
 DIRECTIVES008="$INT008_HOME/.claude/vault/directives.md"
 
@@ -192,6 +197,29 @@ settings_end_count=$(grep -c "vault-settings-end" "$DIRECTIVES008" || true)
 [ "$settings_end_count" -eq 1 ] \
   && pass "directives.md has exactly 1 vault-settings-end" \
   || fail "directives.md has $settings_end_count vault-settings-end (expected 1)"
+
+echo ""
+
+# ─── TC-INT-009: Use existing setup — no prompts, skills updated ─────────────
+echo "TC-INT-009: Use existing setup — one keystroke reinstall"
+INT009_HOME="$(mktemp -d)"
+export HOME="$INT009_HOME"
+
+fresh_install_stdin | bash "$REPO/install.sh" >/dev/null 2>&1 || true
+reinstall_stdin     | bash "$REPO/install.sh" >/dev/null 2>&1 || true
+
+VAULT009="$INT009_HOME/.claude/vault"
+CLAUDE_MD009="$INT009_HOME/.claude/CLAUDE.md"
+
+assert_file_exists "$VAULT009/memory.md"      "memory.md preserved after use-existing reinstall"
+assert_file_exists "$VAULT009/directives.md"  "directives.md preserved after use-existing reinstall"
+assert_contains    "Test User"    "$VAULT009/memory.md" "memory.md still has original user name"
+assert_contains    "Test Project" "$VAULT009/memory.md" "memory.md still has original project name"
+assert_file_exists "$INT009_HOME/.claude/skills/load-memory/SKILL.md" "load-memory skill present"
+assert_file_exists "$INT009_HOME/.claude/skills/save-memory/SKILL.md" "save-memory skill present"
+assert_file_exists "$INT009_HOME/.claude/skills/note/SKILL.md"        "note skill present"
+assert_contains    "USER_NAME"    "$INT009_HOME/.claude/.vault-install" ".vault-install has USER_NAME"
+assert_contains    "PROJECT_NAME" "$INT009_HOME/.claude/.vault-install" ".vault-install has PROJECT_NAME"
 
 echo ""
 

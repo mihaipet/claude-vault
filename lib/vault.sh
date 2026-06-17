@@ -3,11 +3,15 @@
 
 # Write install config to ~/.claude/.vault-install
 # Args: $1=vault_path  $2=claude_md_path  $3=scope (global|project)  $4=version
+#       $5=user_name (optional)  $6=project_name (optional)  $7=project_path (optional)
 write_install_config() {
   local vault_path="$1"
   local claude_md="$2"
   local scope="$3"
   local version="$4"
+  local user_name="${5:-}"
+  local project_name="${6:-}"
+  local project_path="${7:-}"
   local config_path="$HOME/.claude/.vault-install"
 
   mkdir -p "$(dirname "$config_path")"
@@ -17,6 +21,9 @@ CLAUDE_MD="$claude_md"
 SCOPE=$scope
 VERSION=$version
 INSTALL_DATE=$(date +%Y-%m-%d)
+USER_NAME="$user_name"
+PROJECT_NAME="$project_name"
+PROJECT_PATH="$project_path"
 EOF
 }
 
