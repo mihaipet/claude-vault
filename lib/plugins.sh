@@ -6,10 +6,12 @@
 # Only includes directories that contain a manifest.sh.
 list_plugins() {
   local plugins_dir="$1"
-  [ -d "$plugins_dir" ] || return
+  [ -d "$plugins_dir" ] || return 0
 
   for dir in "$plugins_dir"/*/; do
-    [ -f "${dir}manifest.sh" ] && basename "$dir"
+    if [ -f "${dir}manifest.sh" ]; then
+      basename "$dir"
+    fi
   done
 }
 

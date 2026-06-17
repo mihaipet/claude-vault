@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Shared settings logic — sourced by install.sh and configure.sh
 
+# shellcheck source=lib/version.sh
+source "$(dirname "${BASH_SOURCE[0]}")/version.sh"
+
 # Read current settings from an existing directives.md.
 # Sets: CURRENT_ROLE_DIRECTIVE, CURRENT_LENGTH_DIRECTIVE, CURRENT_CONFIRM_DIRECTIVE
 # Returns with empty strings if file missing or no settings block found.
@@ -234,8 +237,8 @@ ask_persona_setup() {
   mkdir -p "$(dirname "$persona_config")"
   {
     echo "PERSONA_SETUP=$PERSONA_CHOICE"
-    [ -n "$AI_NAME" ] && echo "AI_NAME=$AI_NAME"
-    [ "$USER_PERSONA_WANTS_NAME" = "true" ] && echo "USER_PERSONA_NAME=$USER_NAME"
+    if [ -n "$AI_NAME" ]; then echo "AI_NAME=$AI_NAME"; fi
+    if [ "$USER_PERSONA_WANTS_NAME" = "true" ]; then echo "USER_PERSONA_NAME=$USER_NAME"; fi
   } > "$persona_config"
 }
 
@@ -251,18 +254,18 @@ write_persona_block() {
     skip) return ;;
 
     ai-choose)
-      cat >> "$directives_file" << 'PERSONA_EOF'
-
-<!-- vault-persona-start -->
-## Identity
-You have not been given a name yet. At the very start of your next session with this vault:
-1. Introduce yourself briefly.
-2. Suggest a creative name for yourself that fits the project context.
-3. Update this block in directives.md — replace everything between the vault-persona markers with:
-   `## Identity`
-   `Your name is [the name you chose].`
-<!-- vault-persona-end -->
-PERSONA_EOF
+      {
+        echo ""
+        echo "$VAULT_PERSONA_START"
+        echo "## Identity"
+        echo "You have not been given a name yet. At the very start of your next session with this vault:"
+        echo "1. Introduce yourself briefly."
+        echo "2. Suggest a creative name for yourself that fits the project context."
+        echo "3. Update this block in directives.md — replace everything between the vault-persona markers with:"
+        echo "   \`## Identity\`"
+        echo "   \`Your name is [the name you chose].\`"
+        echo "$VAULT_PERSONA_END"
+      } >> "$directives_file"
       ;;
 
     named)
@@ -270,10 +273,10 @@ PERSONA_EOF
       [ "$USER_PERSONA_WANTS_NAME" = "true" ] && user_line=" Address the user as $USER_NAME."
       {
         echo ""
-        echo "<!-- vault-persona-start -->"
+        echo "$VAULT_PERSONA_START"
         echo "## Identity"
         echo "Your name is $AI_NAME.$user_line"
-        echo "<!-- vault-persona-end -->"
+        echo "$VAULT_PERSONA_END"
       } >> "$directives_file"
       ;;
   esac
