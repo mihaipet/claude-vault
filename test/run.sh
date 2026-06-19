@@ -50,11 +50,11 @@ cat > "$FIXTURE" << 'FIXTURE_EOF'
 
 <!-- vault-settings-start -->
 ## About me
-I am a designer. Prioritise visual thinking, component-level decisions, and design system conventions.
+Sample role directive used only by the test suite.
 
 ## Communication
-- Be concise. Short answers. No padding, no unsolicited explanations.
-- Confirm before implementing. Propose first, wait for my approval.
+- Sample length directive: keep answers short.
+- Sample confirm directive: propose before acting.
 - Ask one clarifying question at a time, not a list
 - If something is unclear, say so. Do not assume and proceed.
 <!-- vault-settings-end -->
@@ -66,13 +66,13 @@ FIXTURE_EOF
 read_current_settings "$FIXTURE"
 
 assert_eq "$CURRENT_ROLE_DIRECTIVE" \
-  "I am a designer. Prioritise visual thinking, component-level decisions, and design system conventions." \
+  "Sample role directive used only by the test suite." \
   "reads role correctly"
 assert_eq "$CURRENT_LENGTH_DIRECTIVE" \
-  "Be concise. Short answers. No padding, no unsolicited explanations." \
+  "Sample length directive: keep answers short." \
   "reads length directive correctly"
 assert_eq "$CURRENT_CONFIRM_DIRECTIVE" \
-  "Confirm before implementing. Propose first, wait for my approval." \
+  "Sample confirm directive: propose before acting." \
   "reads confirm directive correctly"
 
 # No settings block — all return empty
@@ -90,16 +90,16 @@ echo "write_settings_block"
 DIRECTIVES="$TMPDIR_BASE/directives_write.md"
 cp "$PROJECT_DIR/templates/directives.md" "$DIRECTIVES"
 
-ROLE_DIRECTIVE="I am a designer. Prioritise visual thinking, component-level decisions, and design system conventions."
-LENGTH_DIRECTIVE="Be concise. Short answers. No padding, no unsolicited explanations."
-CONFIRM_DIRECTIVE="Confirm before implementing. Propose first, wait for my approval."
+ROLE_DIRECTIVE="Sample role directive used only by the test suite."
+LENGTH_DIRECTIVE="Sample length directive: keep answers short."
+CONFIRM_DIRECTIVE="Sample confirm directive: propose before acting."
 
 write_settings_block "$DIRECTIVES"
 assert_contains "<!-- vault-settings-start -->" "$DIRECTIVES" "start marker written"
 assert_contains "<!-- vault-settings-end -->" "$DIRECTIVES" "end marker written"
-assert_contains "I am a designer" "$DIRECTIVES" "role directive written"
-assert_contains "Be concise" "$DIRECTIVES" "length directive written"
-assert_contains "Confirm before" "$DIRECTIVES" "confirm directive written"
+assert_contains "Sample role directive" "$DIRECTIVES" "role directive written"
+assert_contains "Sample length directive" "$DIRECTIVES" "length directive written"
+assert_contains "Sample confirm directive" "$DIRECTIVES" "confirm directive written"
 
 # Idempotent — second run must not duplicate the block
 write_settings_block "$DIRECTIVES"
