@@ -1,5 +1,7 @@
 # Claude Vault
 
+[![tests](https://github.com/mihaipet/claude-vault/actions/workflows/test.yml/badge.svg)](https://github.com/mihaipet/claude-vault/actions/workflows/test.yml)
+
 A lightweight second brain for Claude Code. Two files, six skills, ten minutes to set up.
 
 Claude forgets everything when a session ends. This gives it a place to remember — and a way to grow that memory over time.
