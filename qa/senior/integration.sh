@@ -2,10 +2,11 @@
 # Integration test suite for claude-vault
 # Covers: install, reinstall, idempotency, uninstall, persona, settings
 #
-# Note: install.sh exits with code 1 in non-interactive runs because
-# AVAILABLE=$(list_plugins ...) returns 1 when the plugins/ directory is absent,
-# and set -e in install.sh propagates that. All vault artifacts are still created
-# correctly. Tests use "|| true" on installer calls and assert on artifacts only.
+# Note: a fresh install needs interactive answers, so tests that pipe partial
+# input may see install.sh exit non-zero when a `read` hits EOF under `set -e` —
+# expected, not a bug. The "use existing setup" path IS non-interactive and exits
+# 0 (install.sh guards its prompts behind `if ! $_use_existing`). Tests use
+# "|| true" on installer calls and assert on artifacts only.
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 
