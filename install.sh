@@ -129,8 +129,13 @@ if ! $_use_existing; then
 fi
 
 # ── Step 5b: Persona setup (one-time, never repeats) ─────────────────────────
+# Skipped in the "use existing setup" path — that path promises no questions and
+# is driven non-interactively by update.sh. A pre-persona install can pick up a
+# persona later via "change setup".
 
-ask_persona_setup
+if ! $_use_existing; then
+  ask_persona_setup
+fi
 
 echo "Installing..."
 echo ""
@@ -241,30 +246,34 @@ write_install_config "$VAULT_PATH" "$CLAUDE_MD" "$SCOPE" "$VAULT_VERSION" "$USER
 echo "✓ Install config saved"
 
 # ── Step 11: Optional plugins ─────────────────────────────────────────────────
+# Skipped in the "use existing setup" path — it prompts, and that path is driven
+# non-interactively by update.sh. Plugins can be added later via "change setup".
 
-PLUGINS_DIR="$SCRIPT_DIR/plugins"
-AVAILABLE=$(list_plugins "$PLUGINS_DIR")
+if ! $_use_existing; then
+  PLUGINS_DIR="$SCRIPT_DIR/plugins"
+  AVAILABLE=$(list_plugins "$PLUGINS_DIR")
 
-if [ -n "$AVAILABLE" ]; then
-  echo ""
-  echo "Optional plugins available:"
-  echo ""
-  i=1
-  PLUGIN_NAMES=""
-  for plugin in $AVAILABLE; do
-    load_plugin_manifest "$PLUGINS_DIR/$plugin"
-    echo "  $i) $PLUGIN_NAME — $PLUGIN_DESCRIPTION"
-    PLUGIN_NAMES="$PLUGIN_NAMES $plugin"
-    i=$((i+1))
-  done
-  echo ""
-  read -p "Install plugins? Enter numbers separated by spaces, or press Enter to skip: " PLUGIN_CHOICES
-  echo ""
+  if [ -n "$AVAILABLE" ]; then
+    echo ""
+    echo "Optional plugins available:"
+    echo ""
+    i=1
+    PLUGIN_NAMES=""
+    for plugin in $AVAILABLE; do
+      load_plugin_manifest "$PLUGINS_DIR/$plugin"
+      echo "  $i) $PLUGIN_NAME — $PLUGIN_DESCRIPTION"
+      PLUGIN_NAMES="$PLUGIN_NAMES $plugin"
+      i=$((i+1))
+    done
+    echo ""
+    read -p "Install plugins? Enter numbers separated by spaces, or press Enter to skip: " PLUGIN_CHOICES
+    echo ""
 
-  for choice in $PLUGIN_CHOICES; do
-    selected=$(echo "$PLUGIN_NAMES" | tr ' ' '\n' | grep -v '^$' | sed -n "${choice}p")
-    [ -n "$selected" ] && install_plugin "$PLUGINS_DIR/$selected" "$VAULT_PATH" "$SKILLS_DEST"
-  done
+    for choice in $PLUGIN_CHOICES; do
+      selected=$(echo "$PLUGIN_NAMES" | tr ' ' '\n' | grep -v '^$' | sed -n "${choice}p")
+      [ -n "$selected" ] && install_plugin "$PLUGINS_DIR/$selected" "$VAULT_PATH" "$SKILLS_DEST"
+    done
+  fi
 fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────

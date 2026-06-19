@@ -308,6 +308,26 @@ PERSONA_CHOICE="ai-choose" AI_NAME="choose" USER_PERSONA_WANTS_NAME=false write_
 assert_contains "vault-persona-start" "$PERSONA_FILE" "ai-choose: persona block written"
 assert_contains "not been given a name yet" "$PERSONA_FILE" "ai-choose: self-naming directive written"
 
+# ── install.sh: "use existing" path stays non-interactive ─────────────────────
+
+echo ""
+echo "install — use-existing reinstall is non-interactive"
+
+# Simulate a pre-persona install: vault dir + install config, but NO .vault-persona.
+# This is the exact path update.sh drives: pipe "1" (use existing) with no more input.
+UE_HOME="$TMPDIR_BASE/use_existing_home"
+mkdir -p "$UE_HOME/.claude/vault"
+printf 'VAULT_PATH=%s/.claude/vault\nCLAUDE_MD=%s/.claude/CLAUDE.md\nSCOPE=global\n' \
+  "$UE_HOME" "$UE_HOME" > "$UE_HOME/.claude/.vault-install"
+
+set +e
+printf '1\n' | HOME="$UE_HOME" bash "$PROJECT_DIR/install.sh" >/dev/null 2>&1
+UE_CODE=$?
+set -e
+
+assert_eq "$UE_CODE" "0" "use-existing reinstall exits 0 with no .vault-persona present"
+assert_file_exists "$UE_HOME/.claude/skills/load-memory/SKILL.md" "use-existing reinstall installs skills"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 echo ""
