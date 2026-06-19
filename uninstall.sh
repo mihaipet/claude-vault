@@ -26,6 +26,7 @@ echo "This will remove:"
 echo "  - Vault block from CLAUDE.md"
 echo "  - Skills /vault-edit, /setup, /load-memory, /save-memory, /note, /update from ~/.claude/skills/"
 echo "  - Install config at ~/.claude/.vault-install"
+echo "  - Persona config at ~/.claude/.vault-persona"
 echo ""
 echo "This will NOT touch:"
 echo "  - Your vault files (memory.md, directives.md, etc.) at $VAULT_PATH"
@@ -70,6 +71,12 @@ config_path="$HOME/.claude/.vault-install"
 if [ -f "$config_path" ]; then
   rm "$config_path"
   echo "✓ Removed install config"
+fi
+
+persona_path="$HOME/.claude/.vault-persona"
+if [ -f "$persona_path" ]; then
+  rm "$persona_path"
+  echo "✓ Removed persona config"
 fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
