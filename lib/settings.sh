@@ -72,7 +72,7 @@ ask_settings() {
   echo ""
 
   case "$ROLE_CHOICE" in
-    1) ROLE_DIRECTIVE="I am a designer. Prioritise visual thinking, component-level decisions, and design system conventions." ;;
+    1) ROLE_DIRECTIVE="I am a designer. Anchor on the user and the problem before jumping to solutions. Give a couple of options with rationale and trade-offs, not a single answer." ;;
     2) ROLE_DIRECTIVE="I am a developer. Be technically precise. Prefer code over descriptions where relevant." ;;
     3) ROLE_DIRECTIVE="I am a product manager. Structure recommendations clearly. Always flag trade-offs." ;;
     4) ROLE_DIRECTIVE="I am a researcher. Prioritise clarity, synthesis, and structured outputs." ;;
