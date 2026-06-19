@@ -40,7 +40,6 @@ Claude forgets everything when a session ends. This gives it a place to remember
 ```bash
 git clone https://github.com/mihaipet/claude-vault.git
 cd claude-vault
-chmod +x install.sh configure.sh uninstall.sh
 ./install.sh
 ```
 
